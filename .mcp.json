@@ -4,7 +4,7 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
       }
     }
   }
