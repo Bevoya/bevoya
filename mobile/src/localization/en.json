@@ -1,0 +1,7 @@
+{
+  "home": {
+    "greeting": "Good evening, {{name}}",
+    "today": "Today",
+    "start_session": "Start session"
+  }
+}
