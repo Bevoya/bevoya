@@ -1,4 +1,4 @@
 # Security
 
-Report vulnerabilities privately to SECURITY_CONTACT_EMAIL (replace before beta).
+Report vulnerabilities privately to bevoya.support@gmail.com.
 Please do not open public issues for security problems.
