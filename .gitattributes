@@ -4,3 +4,11 @@
 *.png binary
 *.jpg binary
 *.webp binary
+
+# GitHub language statistics (the bar on the repo page)
+docs/** linguist-documentation
+.github/assets/** linguist-documentation
+package-lock.json linguist-generated
+uv.lock linguist-generated
+mobile/src/api/generated/** linguist-generated
+*.sql linguist-detectable
