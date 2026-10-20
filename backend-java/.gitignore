@@ -1,0 +1,33 @@
+# Build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+HELP.md
+
+# Local config and secrets (names only belong in .env.example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.jks
+service-account*.json
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated/
+.springBeans
+.sts4-cache/
+nbproject/
+nbbuild/
+nbdist/
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db
