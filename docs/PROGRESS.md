@@ -9,11 +9,11 @@ Update this file at the end of every work session: move items from "Next" to "Do
 |---|---|
 | Docs and ADRs | Written and committed |
 | Repo scaffold | Done (folders, README, .gitignore files, .gitattributes) |
-| CI | On branch `chore/ci-pipelines`, not merged yet |
+| CI | PR #4 open. mobile, java, audit-ai and audit-mobile checks pass. The secret scan has 1 finding being investigated |
 | Database | Not started |
 | Java API | Not started (folders only) |
 | Python AI service | Not started (folders only) |
-| Mobile app | Route stubs, colour tokens, jest and lint working. No screens yet |
+| Mobile app | Route stubs, colour tokens, jest, lint and typecheck working. No screens yet |
 
 Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm email, sign in, create a goal, restart the app and still see it. A second account gets `404` on that goal.
 
@@ -36,22 +36,24 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 | 20 Oct 2026 | `CLAUDE.md` added at repo root, next to `README.md` |
 | 20 Oct 2026 | Decisions: launch 18+ only (ADR-0005); embeddings with `gemini-embedding-2` at 768 dimensions |
 | 21 Oct 2026 | README redesigned with language bar and badges; `.gitattributes`; `.gitignore` for `backend-java` and `ai-python` committed |
-| 21 Oct 2026 | Jest and ESLint set up in `mobile/`; brand colour contrast test passes (17 tests) |
+| 21 Oct 2026 | Jest and ESLint set up in `mobile/`; brand colour contrast test passes (17 tests); typecheck fixed with `"types": ["jest"]` |
 | 21 Oct 2026 | `app.json` updated: Android package, brand colours for icon and splash |
+| 21 Oct 2026 | CI workflows, Dependabot and `docs/engineering/` files written; PR #4 opened, four of five checks green |
 
 ## In progress
 
-- Branch `chore/ci-pipelines`: CI workflows, `docs/engineering/` files, tsconfig `types` fix. Next action: pass typecheck, commit, push, open PR to `develop`, merge when checks are green.
+- PR #4 (`chore/ci-pipelines` to `develop`): the secret scan (`security / secrets`) reports 1 finding in 12 commits. Next action: push the verbose gitleaks step, read the finding, then either add its fingerprint to `.gitleaksignore` (if it is a dummy value) or rotate the secret (if it is real). Merge only when the scan is green.
 
 ## Next (in order)
 
-1. Merge `chore/ci-pipelines`; confirm all checks are green on GitHub
-2. `feature/db-schema-migrations`: V1 baseline with `secure_table()` and grants, V2 identity, goals; run against the Supabase dev project
-3. `feature/java-skeleton`: Spring Boot, health endpoint, RFC 7807 errors, request ID; first Render deploy
-4. `feature/java-auth`: JWKS validation, `CurrentUser`, `GET /me`, cross-user tests
-5. `feature/mobile-design-system`: `typography.ts`, `lightTheme` and `darkTheme`, `useTheme()`, Button, Card, TextField, EmptyState, ErrorState
-6. `feature/mobile-navigation`: sign-in screens, auth gate, goals list and create form
-7. `feature/ai-service-skeleton` (after M1)
+1. Resolve the gitleaks finding and merge PR #4
+2. Create the `bevoya-dev` Supabase project in Mumbai (`ap-south-1`); check JWT signing keys; turn off the Data API
+3. `feature/db-schema-migrations`: V1 baseline with `secure_table()` and grants, V2 identity, goals; run against the Supabase dev project
+4. `feature/java-skeleton`: Spring Boot, health endpoint, RFC 7807 errors, request ID; first Render deploy
+5. `feature/java-auth`: JWKS validation, `CurrentUser`, `GET /me`, cross-user tests
+6. `feature/mobile-design-system`: `typography.ts`, `lightTheme` and `darkTheme`, `useTheme()`, Button, Card, TextField, EmptyState, ErrorState
+7. `feature/mobile-navigation`: sign-in screens, auth gate, goals list and create form
+8. `feature/ai-service-skeleton` (after M1)
 
 ## Small tasks to fit in
 
@@ -66,7 +68,7 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 
 - [ ] Android application id (currently `app.bevoya.android`; cannot change after publishing)
 - [ ] Gemini billing: enable pay-as-you-go before any real person's data is used
-- [ ] GitHub plan: pay for branch protection on a private repo, or rely on discipline
+- [x] GitHub plan: staying on the free plan, so no branch protection. Rule: never merge a red check
 - [ ] Weekly hours available (decides where the cut line goes)
 - [ ] Keep `develop`, or collapse to `main` plus short branches
 - [ ] Confirm the Supabase project uses JWT signing keys (needed before Java auth)
@@ -79,3 +81,5 @@ Privacy settings, data export and account deletion, Sentry and PostHog with reda
 ## Notes and problems found
 
 - 21 Oct 2026: TypeScript 6 needs `"types": ["jest"]` in `tsconfig.json`; without it test globals are unknown.
+- 21 Oct 2026: Docker does not work on the dev laptop (ADR-0006). Secret scans and Testcontainers tests run in GitHub Actions, not locally.
+- 21 Oct 2026: gitleaks reported 1 finding. With `--redact` and no `--verbose`, the log hides which file; use `--verbose --redact` to see file, line, rule and fingerprint without exposing the secret.
