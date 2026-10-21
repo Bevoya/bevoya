@@ -48,6 +48,6 @@ jobs:
         run: |
           if [ -f pyproject.toml ] && [ -f uv.lock ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "No Python project yet; skipping."; fi
       - if: steps.scaffold.outputs.present == 'true'
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
       - if: steps.scaffold.outputs.present == 'true'
         run: uv sync --frozen && uv run pip-audit
