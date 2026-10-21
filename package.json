@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@testing-library/react-native": "^14.1.0"
+  }
+}

@@ -1,0 +1,34 @@
+name: ci-java
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+permissions:
+  contents: read
+concurrency:
+  group: ci-java-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  java:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-java
+    steps:
+      - uses: actions/checkout@v4
+      # Gate: skip until feature/java-skeleton adds pom.xml.
+      # Delete this step and every `if:` below once the project exists.
+      - id: scaffold
+        run: |
+          if [ -f pom.xml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "No pom.xml yet; skipping."; fi
+      - if: steps.scaffold.outputs.present == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - if: steps.scaffold.outputs.present == 'true'
+        run: chmod +x mvnw
+      # Unit tests plus Testcontainers integration tests (Docker is preinstalled on ubuntu runners).
+      - if: steps.scaffold.outputs.present == 'true'
+        run: ./mvnw -B verify

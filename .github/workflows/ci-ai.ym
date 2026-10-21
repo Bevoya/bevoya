@@ -1,0 +1,36 @@
+name: ci-ai
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+permissions:
+  contents: read
+concurrency:
+  group: ci-ai-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ai:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-python
+    steps:
+      - uses: actions/checkout@v4
+      # Gate: skip until feature/ai-service-skeleton adds pyproject.toml and uv.lock.
+      # Delete this step and every `if:` below once the project exists.
+      - id: scaffold
+        run: |
+          if [ -f pyproject.toml ] && [ -f uv.lock ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "No pyproject.toml/uv.lock yet; skipping."; fi
+      - if: steps.scaffold.outputs.present == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - if: steps.scaffold.outputs.present == 'true'
+        run: uv sync --frozen
+      - if: steps.scaffold.outputs.present == 'true'
+        run: uv run ruff check .
+      - if: steps.scaffold.outputs.present == 'true'
+        run: uv run ruff format --check .
+      # Gemini is mocked; no secrets in CI.
+      - if: steps.scaffold.outputs.present == 'true'
+        run: uv run pytest -q

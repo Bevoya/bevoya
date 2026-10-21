@@ -1,0 +1,36 @@
+name: ci-mobile
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+permissions:
+  contents: read
+concurrency:
+  group: ci-mobile-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: No hard-coded colours outside src/theme
+        run: |
+          if grep -rEn '#[0-9A-Fa-f]{6}\b' src --include='*.ts' --include='*.tsx' --exclude-dir=theme; then
+            echo "::error::Hard-coded hex colour found. Use theme tokens (see docs/design/COLORS.md)."
+            exit 1
+          fi
+      - name: Unit tests
+        run: npm test -- --ci
