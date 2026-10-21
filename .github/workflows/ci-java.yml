@@ -22,7 +22,7 @@ jobs:
         run: |
           if [ -f pom.xml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "No pom.xml yet; skipping."; fi
       - if: steps.scaffold.outputs.present == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
