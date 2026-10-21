@@ -16,7 +16,10 @@ jobs:
           fetch-depth: 0
       # CLI instead of the Action, which needs a licence key for organisation repos.
       # Pinned tag: bump it deliberately (Dependabot cannot update an inline image).
-      - run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.21.2 detect --source /repo --redact
+      - run: |
+          docker run --rm -v "$PWD:/repo" --entrypoint /bin/sh \
+            ghcr.io/gitleaks/gitleaks:v8.21.2 \
+            -c "git config --global --add safe.directory /repo && gitleaks detect --source /repo --redact --verbose"
 
   audit-mobile:
     runs-on: ubuntu-latest

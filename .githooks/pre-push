@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main|refs/heads/develop)
+      echo "Blocked: no direct pushes to ${remote_ref#refs/heads/}. Use a branch and a PR." >&2
+      exit 1 ;;
+  esac
+done

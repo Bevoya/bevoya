@@ -1,0 +1,3 @@
+# Fine-grained PAT committed in .mcp.json. Revoked 2026-10-21; file untracked.
+# Commit exists in main, develop and feature branches; history not rewritten (private repo).
+b777b4e46f605f903e8a895130366c7d9175725b:.mcp.json:github-fine-grained-pat:7
