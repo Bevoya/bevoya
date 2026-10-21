@@ -1,73 +1,69 @@
 # Bevoya Git workflow
 
-Version 1 · 20 October 2026
-The repository is `bevoya`, owned by your GitHub organisation. Local path: `C:\Projects\bevoya`, using Git Bash in VS Code.
+Version 1 · 21 October 2026
+Source: architecture blueprint, section 12.
 
-## 1. Model
+## 1. Branches
 
-- `main`: stable, deployable. Render deploys from it. Release tags go here.
-- `develop`: integration branch and the repository default. Every pull request targets it.
-- Topic branches are cut from `develop` and merged back with a pull request. `release/*` stabilises a version. `hotfix/*` is cut from `main`.
-- With one or two developers `develop` adds ceremony. It stays because the project brief specifies it; collapse to `main` plus short branches if it costs you time.
-
-## 2. Branches and their jobs
-
-| Branch | Job |
+| Branch | Purpose |
 |---|---|
-| `main` | Stable code and release tags |
-| `develop` | Integration; default branch |
-| `chore/ci-pipelines` | GitHub Actions: Java, Python, mobile, security scan, Dependabot |
-| `chore/render-deploy` | `render.yaml`, Dockerfiles, production env checklist |
-| `feature/db-schema-migrations` | Flyway migrations, RLS, schema tests |
-| `feature/java-skeleton` | Spring Boot project, `/health`, error format, request IDs |
-| `feature/java-auth` | JWT validation, `CurrentUser`, `/me`, profile creation |
-| `feature/ai-service-skeleton` | FastAPI project, internal token, Gemini adapter |
-| `feature/mobile-design-system` | Theme tokens, fonts, UI components |
-| `feature/mobile-navigation` | Router, tabs, auth gate, Supabase sign-in |
-| `feature/mobile-onboarding` | Onboarding, 18+ confirmation, consents |
-| `feature/goals-roadmaps` | Goals and milestones: API and screens |
-| `feature/daily-planner` | Tasks and today's plan |
-| `feature/session-tracking` | Focus timer and session summary |
-| `feature/learning-hub` | Notes, skills, evidence |
-| `feature/journal-reflection` | Journal and reflections |
-| `feature/offline-drafts` | SQLite drafts and offline queue |
-| `feature/ai-coach` | Reflection extraction, roadmap proposals, AI insight cards |
-| `feature/ai-quizzes` | Quiz generation and attempts |
-| `feature/weekly-review` | Daily and weekly review, basic analytics |
-| `feature/notifications-reminders` | Push notifications and reminder jobs |
-| `feature/privacy-settings` | Consents, AI-memory toggles, privacy screens |
-| `feature/account-export-deletion` | Data export and full account deletion |
-| `feature/observability` | Sentry and PostHog with redaction and allow-list |
-| `feature/subscriptions` | Google Play Billing and entitlements |
-| `test/jwt-and-auth-security` | Token security tests |
-| `test/cross-user-authorization` | User B cannot read user A's data, on every endpoint |
-| `test/schema-rls-assertions` | RLS on every table; foreign keys reject cross-user links |
-| `test/ai-safety-fixtures` | Prompt injection, malformed output, no-advice tests |
-| `test/mobile-e2e-maestro` | End-to-end Android flows |
-| `test/accessibility-checks` | TalkBack, 200% font scale, contrast checks |
-| `docs/privacy-and-legal` | Privacy policy, terms, data-safety answers |
-| `docs/security-threat-model` | Threat model work |
+| `main` | Stable and deployable. Render deploys from it. Releases are tagged here |
+| `develop` | Integration branch and the repository default. Every pull request targets it |
+| `type/short-kebab-description` | Short-lived work branches cut from `develop` |
+| `release/vX.Y.Z` | Stabilise a version before it goes to `main` |
+| `hotfix/*` | Cut from `main`, merged back to `main` and `develop` |
 
-Created only when needed: `fix/<name>`, `hotfix/<name>`, `release/v0.1.0`, `refactor/<name>`. Short-lived scaffolding branches (for example `chore/mobile-scaffold`, `docs/project-docs`) are deleted after merging.
+Types: `feature/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `hotfix/`, `release/`. Lowercase, under about 40 characters.
 
-## 3. Rules
+Create a branch **when you start the work**, not in advance. Early branches drift from `develop` and become merge pain.
 
-- Names: `type/short-kebab-description`, lowercase. Types: `feature chore docs test fix refactor hotfix release`.
-- Commits: Conventional Commits, `type(scope): summary`. Types: `feat fix chore docs refactor test perf ci`. Scopes: `mobile api ai db infra docs`.
-- Topic branch to `develop`: pull request, squash merge, delete the branch after merging. Keep PRs small.
-- `release/vX.Y.Z` to `main`: merge commit, tag, then merge `main` back into `develop`.
-- Delete a branch only after its PR is merged. Before starting on an idle branch, run `git merge develop`.
-- Tags: `v0.1.0` local alpha; `v0.2.0` private beta; `v0.3.0` public Android beta; `v1.0.0` first public release.
+If `develop` costs more than it helps while you work solo, collapse to `main` plus short branches. Nothing else in the blueprint depends on it. Record that change as an ADR.
 
-## 4. Protection
-
-Branch protection and required checks on a **private** repository need a paid GitHub plan; on a free organisation plan they cannot be enforced. Check your organisation's plan. Without enforcement, CI still reports and you follow the rules by discipline.
-
-## 5. Start-of-work routine
+## 2. Daily commands (Git Bash)
 
 ```bash
-git checkout develop && git pull
-git checkout feature/<name> && git merge develop
+git checkout develop
+git pull
+git checkout -b feature/java-skeleton
+# ...work...
+git add -A
+git commit -m "feat(api): add Spring Boot skeleton with health endpoint"
+git push -u origin feature/java-skeleton
+gh pr create --base develop --title "feat(api): Spring Boot skeleton" --body "Closes #12. Definition of done checked."
 ```
 
-Then work, commit, `git push`, open a pull request against `develop`.
+## 3. Commits
+
+Conventional Commits: `type(scope): summary`.
+
+- Types: `feat fix chore docs refactor test perf ci`
+- Scopes: `mobile api ai db infra docs`
+- Imperative, lowercase summary, no full stop, under about 72 characters.
+- One logical change per commit. Never commit secrets, `.env.local`, or real user data.
+
+## 4. Pull requests
+
+- Keep them small and focused. Fill in the pull request template and tick the Definition of Done (`DEFINITION_OF_DONE.md`).
+- Topic branch to `develop`: **squash merge**, delete the branch.
+- `release/vX.Y.Z` to `main`: **merge commit**, then tag on `main`, then merge `main` back into `develop`.
+- `hotfix/*`: cut from `main`, pull request to `main`, tag a patch version, merge back into `develop`.
+- Solo: GitHub does not let you approve your own pull request, so require the pull request and green checks with zero approvals. Add one required review and `CODEOWNERS` when a second person joins.
+
+## 5. Tags
+
+```text
+v0.1.0  local alpha: the core loop works for you and a few friends
+v0.2.0  private beta in Pune (needs privacy, export, deletion, monitoring)
+v0.3.0  public Android beta (billing on, Play testing track)
+v1.0.0  first public release
+```
+
+## 6. Branch protection
+
+Required checks on `main` and `develop`: `mobile`, `java`, `ai` and `secrets` (the job names in the workflows). No force-push, no deletion, delete head branches after merge.
+
+Protected branches and required status checks on a **private** repository need a paid GitHub plan. On a free plan, the checks still run and report, but nothing blocks a merge. Decide whether to upgrade or enforce by discipline.
+
+## 7. First branches, in order
+
+`chore/ci-pipelines`, `feature/db-schema-migrations`, `feature/java-skeleton`, `feature/java-auth`, `feature/ai-service-skeleton`, `feature/mobile-design-system`, `feature/mobile-navigation`, then the feature branches listed in the blueprint, section 12.
