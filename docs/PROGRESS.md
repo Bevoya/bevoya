@@ -1,7 +1,7 @@
 # Bevoya progress tracker
 
-Last updated: 22 October 2026 (evening)
-Update this file at the end of every work session: move items from "Next" to "Done", add a dated line, and refresh the status snapshot.
+Last updated: 23 October 2026
+Update this file at the end of every work session: move items from "Next" to "Done", add a dated line, and refresh the status snapshot. Record only results that were actually seen. Mark anything else "unverified".
 
 ## Status snapshot
 
@@ -9,12 +9,12 @@ Update this file at the end of every work session: move items from "Next" to "Do
 |---|---|
 | Docs and ADRs | Written and committed |
 | Repo scaffold | Done (folders, README, .gitignore files, .gitattributes) |
-| CI | PR #4 and PR #16 merged into `develop`. PR #16 had all five checks green (mobile, java, audit-ai, audit-mobile, secrets). **Not yet verified:** the `push` run on `develop` after the #16 merge |
+| CI | PR #4, #16, #18 and #19 merged into `develop`. PR #19 (`fix/ci-mobile-lint`) had five green checks and PR #18 (`feature/db-identity-goals`) had all six (audit-ai, audit-mobile, ci-db, java, mobile, secrets) before merge. **Not yet verified:** the `push` runs on `develop` after the #18 and #19 merges |
 | Security incident | Closed for now. Token revoked, `.mcp.json` untracked, finding ignored by fingerprint. The revoked token is still in git history (see Notes) |
-| Database | Supabase dev project (Mumbai) in use. Migration `V1__baseline` applied through Flyway: `bevoya_app` role, default privileges, `secure_table()`. Role attributes checked (not superuser, no RLS bypass, can log in). Remaining V1 checks listed under In progress. No tables yet |
+| Database | Supabase dev project (Mumbai). V1, V2 and V3 applied through Flyway (`flyway info`: all Success; history table has 3 rows, all `success = true`). `public` has 4 tables (`consent_records`, `flyway_schema_history`, `goals`, `profiles`), all with RLS on. Zero table grants to `anon`, `authenticated`, `service_role`. `bevoya_app`: not superuser, no RLS bypass, can log in. **Still to check:** `anon` execute on `secure_table` (check 3), and the Supabase Data API switch in the dashboard |
 | Java API | Not started (folders only) |
 | Python AI service | Not started (folders only) |
-| Mobile app | Route stubs, colour tokens, jest, lint and typecheck working. No screens yet |
+| Mobile app | Route stubs, colour tokens, jest, lint and typecheck working under `npm ci` (17 tests pass). No screens yet |
 
 Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm email, sign in, create a goal, restart the app and still see it. A second account gets `404` on that goal.
 
@@ -23,7 +23,7 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 - [ ] Sign-up, confirm email, sign-in and sign-out work on a physical device
 - [ ] Expired, wrong-audience, wrong-issuer and unsigned tokens are rejected by tests
 - [ ] Cross-user test: every goal endpoint returns `404` for another user's goal
-- [ ] Schema test: every `public` table has RLS enabled; Supabase Data API is off
+- [ ] Schema test: every `public` table has RLS enabled; Supabase Data API is off (CI schema test merged and green in `ci-db`; dev shows RLS on for all 4 tables; Data API still to re-verify in the dashboard)
 - [ ] Logs and Sentry events contain no goal text or tokens
 - [ ] Goal list has loading, empty and error states; works at 200% font scale with TalkBack labels
 - [ ] All CI workflows pass on `develop`; `bevoya-api` deployed to Render Singapore and `/health` returns 200
@@ -49,21 +49,29 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 | 22 Oct 2026 | Flyway command line available through the Flyway Desktop installer (Community 13.11.0-rc3035) with a `flyway` alias in `~/.bashrc`; settings in git-ignored `backend-java/.env.local` (`FLYWAY_URL`, `FLYWAY_USER`, `FLYWAY_PASSWORD`, `FLYWAY_LOCATIONS`) |
 | 22 Oct 2026 | `V1__baseline.sql` and `afterMigrate__lock_history.sql` written in `backend-java/src/main/resources/db/migration`; `flyway migrate` applied V1 and ran the callback |
 | 22 Oct 2026 | Connection test passed from the laptop through the session pooler (`aws-0-ap-south-1.pooler.supabase.com`, port 5432, user `postgres.<project-ref>`): PostgreSQL 17.11, SSL on, `pgvector` 0.8.2 available, 0 tables in `public`. The `ap-south-1` pooler accepting the project ref confirms the region |
+| 22 Oct 2026 | V2 (default function privileges) and V3 (`profiles`, `consent_records`, `goals`) written with `secure_table()`; `infrastructure/db/ci-bootstrap.sql`, `infrastructure/db/schema-check.sql` and the `ci-db` workflow added. `ci-db` run on a fresh Postgres: bootstrap roles created, "Successfully applied 3 migrations ... now at version v3", all six check blocks returned `DO` with no exception |
+| 22 Oct 2026 | Found `ci-mobile` failing at the Lint step on `develop` (`TypeError: Cannot read properties of undefined (reading 'Intrinsic')` in `ts-api-utils`). Cause: `package.json` had `typescript ~7.0.2` in `devDependencies` next to `~6.0.3`; `typescript-estree` supports `>=4.8.4 <6.1.0` |
+| 23 Oct 2026 | PR #19 `fix(mobile): drop typescript 7, lint with eslint` merged after five green checks. Removed the TypeScript 7 devDependency, kept `typescript ~6.0.3` in `dependencies`, added `@typescript-eslint/parser` as a devDependency, changed the `lint` script from `expo lint` to `eslint .`. Reproduced CI locally with `npm ci`: lint, typecheck and 17 tests pass |
+| 23 Oct 2026 | Checked that `eslint .` is a real lint: with `--print-config`, `import/namespace` is active on `_layout.tsx`, and a canary file importing a missing export fails with `import/namespace` (exit 1) |
+| 23 Oct 2026 | `feature/db-identity-goals` rebased on `origin/develop` (after #19) and pushed with `--force-with-lease` |
+| 23 Oct 2026 | PR #18 `feat(db): identity and goals schema` merged after six green checks, including `ci-db`. The local fast-forward of `develop` then failed because of uncommitted edits to `docs/PROGRESS.md`; the merge on GitHub was not affected |
+| 23 Oct 2026 | `flyway migrate` applied V2 and V3 to the dev project ("Successfully applied 2 migrations ... now at version v3") and the `afterMigrate` lock-history callback ran. Flyway shows times in UTC: V1 at 21 Oct 20:08, V2 and V3 at 22 Oct 19:11 |
+| 23 Oct 2026 | Dev checks in the Supabase SQL Editor passed: `flyway_schema_history` has 3 rows, all `success = true`; RLS is on for all 4 `public` tables; zero grants to `anon`, `authenticated`, `service_role`; `bevoya_app` has `rolsuper` false, `rolbypassrls` false, `rolcanlogin` true |
 
 ## In progress
 
-- Branch `feature/db-schema-migrations` holds V1, the callback and this file. Next action: run the checks below, one statement at a time in the Supabase SQL Editor (it shows only the last result of a multi-statement paste), then commit and push once, open one PR to `develop`, and merge with `gh pr checks N && gh pr merge N --squash --delete-branch`.
-  1. Tables in `public` with `relrowsecurity` (expect only `flyway_schema_history`, RLS on)
-  2. Table grants to `anon`, `authenticated`, `service_role` (expect zero rows)
-  3. `has_function_privilege('anon', 'public.secure_table(regclass)', 'execute')` (expect false)
-  4. `bevoya_app` attributes: done, not superuser, no RLS bypass, can log in
-- Before pushing: make sure the branch is based on current `develop` (`git merge-base --is-ancestor origin/develop HEAD && echo up-to-date`). The branch was pre-created and may predate the PR #16 fix; if it is behind, rebase it on `origin/develop`. Check `git status --short` does not list `.env.local`.
+- Finish the V1 to V3 verification on dev:
+  1. Run in the SQL Editor: `select has_function_privilege('anon', 'public.secure_table(regclass)', 'execute');` (expect `false`). Not yet run or seen
+  2. In the Supabase dashboard, confirm the Data API is switched off. It was only "reported done" on 22 Oct and should be re-verified now that tables exist
+- Commit this tracker on a `docs/` branch (not directly on `develop`) and merge it with the `gh pr checks N && gh pr merge N --squash --delete-branch` gate.
+- Clear the Flyway variables from the shell after use: `unset FLYWAY_PASSWORD FLYWAY_USER FLYWAY_URL FLYWAY_LOCATIONS`.
+- **Do not run `schema-check.sql` or `ci-bootstrap.sql` against Supabase.** Check 6 inserts into `auth.users`, and the bootstrap creates roles that already exist there. They belong only in CI's throwaway Postgres.
 
 ## Next (in order)
 
-1. Finish the V1 checks; push the migration branch and merge it (one PR)
+1. Finish the verification above (check 3, Data API) and merge the tracker update
 2. Put the DB admin password in a password manager (it is only in `backend-java/.env.local` as `FLYWAY_PASSWORD`)
-3. V2 migration: identity, profiles, consent records and goals, with `secure_table()` on every table and composite foreign keys; add the schema test that fails when a `public` table lacks RLS
+3. Add `ci-db` as a required check name in `GIT_WORKFLOW.md`, and fix `ai` to `audit-ai`
 4. `feature/java-skeleton`: Spring Boot, health endpoint, RFC 7807 errors, request ID; first Render deploy. Use the Flyway version Spring Boot manages (not the rc used locally) and add the PostgreSQL Flyway module; set the `bevoya_app` password out of band when the app first connects
 5. `feature/java-auth`: JWKS validation (pin ES256), `CurrentUser`, `GET /me`, cross-user tests
 6. `feature/mobile-design-system`: `typography.ts`, `lightTheme` and `darkTheme`, `useTheme()`, Button, Card, TextField, EmptyState, ErrorState
@@ -72,7 +80,13 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 
 ## Small tasks to fit in
 
-- [ ] Comment `@dependabot rebase` on the open Dependabot PRs so they pick up the fixed `security` workflow
+- [ ] Add a Dependabot `ignore` for major `typescript` updates in `.github/dependabot.yml` (Expo pins the version). First check who added 7.0.2: `git log -p -3 -- mobile/package.json | cat`. Origin not yet checked
+- [ ] Run `npx expo install --check` in `mobile/` and read what it reports. It was not run after the fix; it may flag the explicit `@typescript-eslint/parser` pin
+- [ ] Investigate why `expo lint` fails on Windows (`Parse errors in imported module ... Cannot find module '@typescript-eslint/parser'`) while `eslint .` passes on the same config. Unexplained; `eslint .` is the workaround. Retry `expo lint` after future Expo or eslint-config-expo updates
+- [ ] Review the 52 npm audit findings (21 moderate, 31 high) separately. Do not run `npm audit fix --force`; it can move Expo-pinned packages
+- [ ] Review the npm `allowScripts` warning for `@parcel/watcher` and `unrs-resolver` (`npm install-scripts ls`)
+- [ ] ESLint 9.39.5 is reported deprecated by npm. Check Expo's supported ESLint version before upgrading
+- [ ] Comment `@dependabot rebase` on the open Dependabot PRs so they pick up the fixed workflows
 - [ ] Mark ADR-0004 as Accepted (embedding model chosen)
 - [ ] Update `docs/product/AI_RULES.md` section 5 to say `gemini-embedding-2`
 - [ ] Check the doc links in `README.md` match the real folder layout
@@ -81,8 +95,7 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 - [ ] Replace placeholder launcher icon and splash image with the real mark
 - [ ] Create the new, minimum-scope GitHub token for the MCP server and store it as a user environment variable (`GITHUB_PERSONAL_ACCESS_TOKEN`), never in a file
 - [ ] Set the repository default branch to `develop` (`origin/HEAD` currently points to `main`, which contradicts `GIT_WORKFLOW.md`)
-- [ ] Every branch the plan names already exists, pre-created and stale. When you reach one, do not create it. Check `git log origin/develop..origin/<branch> --oneline | cat`; if it has no unique commits, delete it (`git push origin --delete <branch>`, `git branch -D <branch>`) and cut it again from `develop`. Prune the roughly 30 pre-created branches you are not about to use; they drift from `develop`, and `GIT_WORKFLOW.md` says to branch when work starts. Recreate each from `develop` when needed
-- [ ] Fix the required-check name mismatch: `GIT_WORKFLOW.md` says `ai`, the workflow job is `audit-ai`
+- [ ] Every branch the plan names already exists, pre-created and stale. When you reach one, do not create it. Check `git log origin/develop..origin/<branch> --oneline | cat`; if it has no unique commits, delete it (`git push origin --delete <branch>`, `git branch -D <branch>`) and cut it again from `develop`. Prune the roughly 30 pre-created branches you are not about to use; they drift from `develop`, and `GIT_WORKFLOW.md` says to branch when work starts
 - [ ] Confirm the `.githooks/pre-push` guard is committed and `core.hooksPath` is set; set `git config --global core.pager cat`
 - [ ] Add `.mcp.json` handling to `ENVIRONMENT.md` (secrets in MCP config are secrets too)
 - [ ] Update the `gitleaks` Docker image pin deliberately when a new version is needed (Dependabot cannot bump it)
@@ -92,7 +105,8 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 - [ ] Give `bevoya_app` its own password out of band (never in a migration or repo file). The admin `postgres` password is for Flyway only and never goes on Render
 - [ ] `ENVIRONMENT.md`: add `FLYWAY_LOCATIONS`, the session-pooler JDBC URL form and the rule that Flyway never runs on Render
 - [ ] Add the vector extension in its own migration when embeddings start (ADR-0004); V1 does not include it
-- [ ] V1 has only been applied to the dev database. The empty-database test in CI (Testcontainers) comes with the Java skeleton
+- [ ] The `ci-db` job uses a throwaway `postgres:postgres` connection URL. If `security / secrets` flags it, allow it narrowly (by fingerprint) with a comment saying it is a CI-only throwaway
+- [ ] The empty-database Testcontainers test comes with the Java skeleton; until then `ci-db` is the only empty-database migration test
 
 ## Decisions still open
 
@@ -123,3 +137,12 @@ Privacy settings, data export and account deletion, Sentry and PostHog with reda
 - 22 Oct 2026: The first `flyway migrate` of V1 stalled with no result line. V1 then contained a step that altered Flyway's own history table; that is the suspected cause (a lock fight with Flyway's own write), not confirmed. After stopping the run, the step moved to `afterMigrate__lock_history.sql` and the migration applied cleanly. Rule: never alter `flyway_schema_history` inside a versioned migration. Once a version has applied, never edit that file; add a new version.
 - 22 Oct 2026: The Flyway CLI installed with Flyway Desktop lives in `C:\Program Files\Red Gate\Flyway Desktop\flyway\flyway.cmd`. It is the local runner only. Migrations are plain SQL in `backend-java/src/main/resources/db/migration`, so the runner can change without touching them.
 - 22 Oct 2026: `gh pr merge --squash --delete-branch` fails its local cleanup if the working tree has uncommitted changes. Stash or commit first. After a squash merge, delete the old local branch with `git branch -D`.
+- 23 Oct 2026: **`ci-mobile` was red on `develop`.** `typescript ~7.0.2` sat in `devDependencies` beside `~6.0.3` in `dependencies`. CI uses `npm ci`, which follows the lockfile and installed 7.0.2. `ts-api-utils` reads `ts.TypeFlags.Intrinsic`, which is undefined there, so ESLint crashed. Local `node_modules` had been stale at 6.0.3, which hid it. Fixed in PR #19. Rule: Expo pins the TypeScript version (`~6.0.3` for SDK 58); do not accept a major bump. Also, an earlier note said PR #16 had five green checks; that was true for the PR, but `develop` was red afterwards.
+- 23 Oct 2026: `expo lint` fails locally on Windows with `Cannot find module '@typescript-eslint/parser'` from `eslint-plugin-import`, even though the parser loads from the project root, from ESLint's location and through the plugin's own loader. `eslint .` passes on the same config and catches a real `import/namespace` error. Cause of the wrapper failure is **not identified**; the `lint` script now uses `eslint .`. An early `import/named` canary passed with exit 0 because that rule is not the one in play for TypeScript files; use `import/namespace` for canaries.
+- 23 Oct 2026: A local `npm install` can hide dependency problems that CI's `npm ci` shows. Before pushing dependency changes, run `npm ci` then `npm run lint && npm run typecheck && npm test -- --ci`.
+- 23 Oct 2026: After a rebase and force-push, `gh pr checks` can report "no checks reported" until the new run registers. Wait and re-run; do not merge on an empty result.
+- 23 Oct 2026: `infrastructure/db/schema-check.sql` and `ci-bootstrap.sql` are for CI's throwaway Postgres only. Never run them against Supabase (the bootstrap creates roles that already exist, and check 6 inserts into `auth.users`).
+- 23 Oct 2026: `flyway` run from a new shell found no connection settings and no locations. The `FLYWAY_*` values are in the git-ignored `backend-java/.env.local` and are not loaded automatically. Load them with `set -a; source <(tr -d '\r' < backend-java/.env.local); set +a` from the repo root (the `tr` strips Windows line endings), run Flyway, then `unset` them. Run `flyway info` before `flyway migrate`.
+- 23 Oct 2026: V3 printed `policy "bevoya_app_all" for relation "public.<table>" does not exist, skipping` three times. This looks like a `drop policy if exists` notice on a fresh table and is expected on first apply (inferred from the message, not checked against the `secure_table()` source). The `schema-check.sql` run in CI and the dev checks above both passed.
+- 23 Oct 2026: `gh pr merge --squash --delete-branch` can merge on GitHub but fail the local fast-forward when `docs/PROGRESS.md` has uncommitted edits. Copy the file aside, `git checkout -- docs/PROGRESS.md`, then `git pull`.
+- 23 Oct 2026: V1 to V3 were all found in the working tree on `develop` when Flyway validated "3 migrations", which means the V1 branch had reached `develop`.
