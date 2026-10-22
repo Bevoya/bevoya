@@ -15,7 +15,7 @@ jobs:
       run:
         working-directory: backend-java
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Gate: skip until feature/java-skeleton adds pom.xml.
       # Delete this step and every `if:` below once the project exists.
       - id: scaffold
