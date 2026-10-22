@@ -11,7 +11,7 @@ Update this file at the end of every work session: move items from "Next" to "Do
 | Repo scaffold | Done (folders, README, .gitignore files, .gitattributes) |
 | CI | PR #4, #16, #18 and #19 merged into `develop`. PR #19 (`fix/ci-mobile-lint`) had five green checks and PR #18 (`feature/db-identity-goals`) had all six (audit-ai, audit-mobile, ci-db, java, mobile, secrets) before merge. **Not yet verified:** the `push` runs on `develop` after the #18 and #19 merges |
 | Security incident | Closed for now. Token revoked, `.mcp.json` untracked, finding ignored by fingerprint. The revoked token is still in git history (see Notes) |
-| Database | Supabase dev project (Mumbai). V1, V2 and V3 applied through Flyway (`flyway info`: all Success; history table has 3 rows, all `success = true`). `public` has 4 tables (`consent_records`, `flyway_schema_history`, `goals`, `profiles`), all with RLS on. Zero table grants to `anon`, `authenticated`, `service_role`. `bevoya_app`: not superuser, no RLS bypass, can log in. **Still to check:** `anon` execute on `secure_table` (check 3), and the Supabase Data API switch in the dashboard |
+| Database | Supabase dev project (Mumbai). V1, V2 and V3 applied through Flyway (`flyway info`: all Success; history table has 3 rows, all `success = true`). `public` has 4 tables (`consent_records`, `flyway_schema_history`, `goals`, `profiles`), all with RLS on. Zero table grants to `anon`, `authenticated`, `service_role`. `bevoya_app`: not superuser, no RLS bypass, can log in. `anon` has no execute privilege on `secure_table()`. **Still to check:** the Supabase Data API switch in the dashboard |
 | Java API | Not started (folders only) |
 | Python AI service | Not started (folders only) |
 | Mobile app | Route stubs, colour tokens, jest, lint and typecheck working under `npm ci` (17 tests pass). No screens yet |
@@ -56,20 +56,18 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 | 23 Oct 2026 | `feature/db-identity-goals` rebased on `origin/develop` (after #19) and pushed with `--force-with-lease` |
 | 23 Oct 2026 | PR #18 `feat(db): identity and goals schema` merged after six green checks, including `ci-db`. The local fast-forward of `develop` then failed because of uncommitted edits to `docs/PROGRESS.md`; the merge on GitHub was not affected |
 | 23 Oct 2026 | `flyway migrate` applied V2 and V3 to the dev project ("Successfully applied 2 migrations ... now at version v3") and the `afterMigrate` lock-history callback ran. Flyway shows times in UTC: V1 at 21 Oct 20:08, V2 and V3 at 22 Oct 19:11 |
-| 23 Oct 2026 | Dev checks in the Supabase SQL Editor passed: `flyway_schema_history` has 3 rows, all `success = true`; RLS is on for all 4 `public` tables; zero grants to `anon`, `authenticated`, `service_role`; `bevoya_app` has `rolsuper` false, `rolbypassrls` false, `rolcanlogin` true |
+| 23 Oct 2026 | Dev checks in the Supabase SQL Editor passed: `flyway_schema_history` has 3 rows, all `success = true`; RLS is on for all 4 `public` tables; zero grants to `anon`, `authenticated`, `service_role`; `bevoya_app` has `rolsuper` false, `rolbypassrls` false, `rolcanlogin` true; `has_function_privilege('anon', 'public.secure_table(regclass)', 'execute')` returned false |
 
 ## In progress
 
-- Finish the V1 to V3 verification on dev:
-  1. Run in the SQL Editor: `select has_function_privilege('anon', 'public.secure_table(regclass)', 'execute');` (expect `false`). Not yet run or seen
-  2. In the Supabase dashboard, confirm the Data API is switched off. It was only "reported done" on 22 Oct and should be re-verified now that tables exist
-- Commit this tracker on a `docs/` branch (not directly on `develop`) and merge it with the `gh pr checks N && gh pr merge N --squash --delete-branch` gate.
+- In the Supabase dashboard, confirm the Data API is switched off. It was only "reported done" on 22 Oct and should be re-verified now that tables exist.
+- PR #20 (`docs/progress-tracker`) holds this tracker update. Merge it only when its checks are green: `gh pr checks 20 && gh pr merge 20 --squash --delete-branch`.
 - Clear the Flyway variables from the shell after use: `unset FLYWAY_PASSWORD FLYWAY_USER FLYWAY_URL FLYWAY_LOCATIONS`.
 - **Do not run `schema-check.sql` or `ci-bootstrap.sql` against Supabase.** Check 6 inserts into `auth.users`, and the bootstrap creates roles that already exist there. They belong only in CI's throwaway Postgres.
 
 ## Next (in order)
 
-1. Finish the verification above (check 3, Data API) and merge the tracker update
+1. Re-verify the Data API switch and merge the tracker update (PR #20)
 2. Put the DB admin password in a password manager (it is only in `backend-java/.env.local` as `FLYWAY_PASSWORD`)
 3. Add `ci-db` as a required check name in `GIT_WORKFLOW.md`, and fix `ai` to `audit-ai`
 4. `feature/java-skeleton`: Spring Boot, health endpoint, RFC 7807 errors, request ID; first Render deploy. Use the Flyway version Spring Boot manages (not the rc used locally) and add the PostgreSQL Flyway module; set the `bevoya_app` password out of band when the app first connects
