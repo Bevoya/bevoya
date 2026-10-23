@@ -1,6 +1,6 @@
 # Bevoya progress tracker
 
-Last updated: 23 October 2026
+Last updated: 24 October 2026
 Update this file at the end of every work session: move items from "Next" to "Done", add a dated line, and refresh the status snapshot. Record only results that were actually seen. Mark anything else "unverified".
 
 ## Status snapshot
@@ -12,7 +12,7 @@ Update this file at the end of every work session: move items from "Next" to "Do
 | CI | PR #4, #16, #18 and #19 merged into `develop`. PR #19 (`fix/ci-mobile-lint`) had five green checks and PR #18 (`feature/db-identity-goals`) had all six (audit-ai, audit-mobile, ci-db, java, mobile, secrets) before merge. **Not yet verified:** the `push` runs on `develop` after the #18 and #19 merges |
 | Security incident | Closed for now. Token revoked, `.mcp.json` untracked, finding ignored by fingerprint. The revoked token is still in git history (see Notes) |
 | Database | Supabase dev project (Mumbai). V1, V2 and V3 applied through Flyway (`flyway info`: all Success; history table has 3 rows, all `success = true`). `public` has 4 tables (`consent_records`, `flyway_schema_history`, `goals`, `profiles`), all with RLS on. Zero table grants to `anon`, `authenticated`, `service_role`. `bevoya_app`: not superuser, no RLS bypass, can log in. `anon` has no execute privilege on `secure_table()`. **Still to check:** the Supabase Data API switch in the dashboard |
-| Java API | Not started (folders only) |
+| Java API | Skeleton built on `feature/java-skeleton` (Spring Boot 4.1.2, Java 21, Maven wrapper): `GET /health`, RFC 7807 problem responses with a request ID, request ID in log lines, generic 500 that leaks no exception text. `./mvnw -B verify` passes locally (7 tests). The `ci-java.yml` gate is removed on the branch. **Not yet verified:** CI on the PR; not merged. No database, security, JPA or Flyway dependencies yet; not deployed |
 | Python AI service | Not started (folders only) |
 | Mobile app | Route stubs, colour tokens, jest, lint and typecheck working under `npm ci` (17 tests pass). No screens yet |
 
@@ -57,20 +57,22 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 | 23 Oct 2026 | PR #18 `feat(db): identity and goals schema` merged after six green checks, including `ci-db`. The local fast-forward of `develop` then failed because of uncommitted edits to `docs/PROGRESS.md`; the merge on GitHub was not affected |
 | 23 Oct 2026 | `flyway migrate` applied V2 and V3 to the dev project ("Successfully applied 2 migrations ... now at version v3") and the `afterMigrate` lock-history callback ran. Flyway shows times in UTC: V1 at 21 Oct 20:08, V2 and V3 at 22 Oct 19:11 |
 | 23 Oct 2026 | Dev checks in the Supabase SQL Editor passed: `flyway_schema_history` has 3 rows, all `success = true`; RLS is on for all 4 `public` tables; zero grants to `anon`, `authenticated`, `service_role`; `bevoya_app` has `rolsuper` false, `rolbypassrls` false, `rolcanlogin` true; `has_function_privilege('anon', 'public.secure_table(regclass)', 'execute')` returned false |
+| 23 Oct 2026 | PR #20 (tracker update) merged. The first attempt committed the wrong file because the `cp` used a placeholder path; the second commit put the intended `PROGRESS.md` on the branch before the merge |
+| 24 Oct 2026 | Data API switch checked in the Supabase dashboard and the DB admin password stored in a password manager (both reported by you; not shown in output) |
+| 24 Oct 2026 | `feature/java-skeleton` recut from `develop` (the old pre-created branch had no unique commits and was deleted). Project generated from Spring Initializr (Boot 4.1.2, only the `web` dependency) and merged into `backend-java/` without touching `.gitignore` or the migrations. Added `HealthController`, `RequestIdFilter`, `ApiExceptionHandler`, `application.properties` (port from `PORT`, graceful shutdown, request ID in logs, no error text in responses) and `ApiBaselineTest` with a test-only failing endpoint. Local `./mvnw -B verify`: `Tests run: 7, Failures: 0, Errors: 0`, BUILD SUCCESS |
 
 ## In progress
 
-- In the Supabase dashboard, confirm the Data API is switched off. It was only "reported done" on 22 Oct and should be re-verified now that tables exist.
-- PR #20 (`docs/progress-tracker`) holds this tracker update. Merge it only when its checks are green: `gh pr checks 20 && gh pr merge 20 --squash --delete-branch`.
+- `feature/java-skeleton`: committed locally; next is one push, one PR to `develop`, then `gh pr checks N && gh pr merge N --squash --delete-branch` only when every check is green, including `ci-java/java`, which now actually builds and tests (it was skipped by the gate before). Before pushing, confirm `git ls-files -s backend-java/mvnw` shows mode `100755`.
 - Clear the Flyway variables from the shell after use: `unset FLYWAY_PASSWORD FLYWAY_USER FLYWAY_URL FLYWAY_LOCATIONS`.
 - **Do not run `schema-check.sql` or `ci-bootstrap.sql` against Supabase.** Check 6 inserts into `auth.users`, and the bootstrap creates roles that already exist there. They belong only in CI's throwaway Postgres.
 
 ## Next (in order)
 
-1. Re-verify the Data API switch and merge the tracker update (PR #20)
-2. Put the DB admin password in a password manager (it is only in `backend-java/.env.local` as `FLYWAY_PASSWORD`)
-3. Add `ci-db` as a required check name in `GIT_WORKFLOW.md`, and fix `ai` to `audit-ai`
-4. `feature/java-skeleton`: Spring Boot, health endpoint, RFC 7807 errors, request ID; first Render deploy. Use the Flyway version Spring Boot manages (not the rc used locally) and add the PostgreSQL Flyway module; set the `bevoya_app` password out of band when the app first connects
+1. Merge `feature/java-skeleton` (see In progress)
+2. Add `ci-db` as a required check name in `GIT_WORKFLOW.md`, and fix `ai` to `audit-ai`
+3. `chore/render-deploy`: Dockerfile and `render.yaml` for `bevoya-api` in Singapore, first deploy, `/health` returns 200 (an M1 exit criterion). Render has no native Java runtime, so this uses Docker. Local Docker does not work (ADR-0006), so the first real test of the image is Render's build
+4. Proposed split, `feature/java-database`: add the PostgreSQL and Flyway modules and JPA at the versions Spring Boot manages (not the rc used locally); connect as `bevoya_app` with its password set out of band; keep Flyway migrations off Render; add the Testcontainers empty-database migration test in CI
 5. `feature/java-auth`: JWKS validation (pin ES256), `CurrentUser`, `GET /me`, cross-user tests
 6. `feature/mobile-design-system`: `typography.ts`, `lightTheme` and `darkTheme`, `useTheme()`, Button, Card, TextField, EmptyState, ErrorState
 7. `feature/mobile-navigation`: sign-in screens, auth gate, goals list and create form
@@ -84,12 +86,13 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 - [ ] Review the 52 npm audit findings (21 moderate, 31 high) separately. Do not run `npm audit fix --force`; it can move Expo-pinned packages
 - [ ] Review the npm `allowScripts` warning for `@parcel/watcher` and `unrs-resolver` (`npm install-scripts ls`)
 - [ ] ESLint 9.39.5 is reported deprecated by npm. Check Expo's supported ESLint version before upgrading
+- [ ] Tidy `backend-java/pom.xml`: Initializr left empty `<licenses>`, `<developers>`, `<scm>` and `<url/>` elements and an empty `<description/>`
 - [ ] Comment `@dependabot rebase` on the open Dependabot PRs so they pick up the fixed workflows
 - [ ] Mark ADR-0004 as Accepted (embedding model chosen)
 - [ ] Update `docs/product/AI_RULES.md` section 5 to say `gemini-embedding-2`
 - [ ] Check the doc links in `README.md` match the real folder layout
-- [ ] Remove the CI gates in `ci-java.yml` and `ci-ai.yml` when those projects exist
-- [ ] Add Maven, uv and Docker entries to `.github/dependabot.yml` when scaffolded
+- [ ] Remove the CI gate in `ci-ai.yml` when the AI project exists (the `ci-java.yml` gate is removed on `feature/java-skeleton`)
+- [ ] Add Maven (`backend-java`), uv and Docker entries to `.github/dependabot.yml`. The Maven project now exists
 - [ ] Replace placeholder launcher icon and splash image with the real mark
 - [ ] Create the new, minimum-scope GitHub token for the MCP server and store it as a user environment variable (`GITHUB_PERSONAL_ACCESS_TOKEN`), never in a file
 - [ ] Set the repository default branch to `develop` (`origin/HEAD` currently points to `main`, which contradicts `GIT_WORKFLOW.md`)
@@ -104,7 +107,7 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 - [ ] `ENVIRONMENT.md`: add `FLYWAY_LOCATIONS`, the session-pooler JDBC URL form and the rule that Flyway never runs on Render
 - [ ] Add the vector extension in its own migration when embeddings start (ADR-0004); V1 does not include it
 - [ ] The `ci-db` job uses a throwaway `postgres:postgres` connection URL. If `security / secrets` flags it, allow it narrowly (by fingerprint) with a comment saying it is a CI-only throwaway
-- [ ] The empty-database Testcontainers test comes with the Java skeleton; until then `ci-db` is the only empty-database migration test
+- [ ] The empty-database Testcontainers test now comes with the database wiring branch, not the skeleton; until then `ci-db` is the only empty-database migration test
 
 ## Decisions still open
 
@@ -144,3 +147,7 @@ Privacy settings, data export and account deletion, Sentry and PostHog with reda
 - 23 Oct 2026: V3 printed `policy "bevoya_app_all" for relation "public.<table>" does not exist, skipping` three times. This looks like a `drop policy if exists` notice on a fresh table and is expected on first apply (inferred from the message, not checked against the `secure_table()` source). The `schema-check.sql` run in CI and the dev checks above both passed.
 - 23 Oct 2026: `gh pr merge --squash --delete-branch` can merge on GitHub but fail the local fast-forward when `docs/PROGRESS.md` has uncommitted edits. Copy the file aside, `git checkout -- docs/PROGRESS.md`, then `git pull`.
 - 23 Oct 2026: V1 to V3 were all found in the working tree on `develop` when Flyway validated "3 migrations", which means the V1 branch had reached `develop`.
+- 24 Oct 2026: Spring Boot 4.x renamed the web starters (`spring-boot-starter-webmvc`, `spring-boot-starter-webmvc-test`) and moved test annotations into new packages. The skeleton tests avoid those annotations: `@SpringBootTest` on a random port, the JDK `HttpClient`, and `${local.server.port}`. Keep that in mind when generating code from older examples.
+- 24 Oct 2026: The skeleton uses `ResponseEntityExceptionHandler` for RFC 7807 (`application/problem+json`) and logs only the exception type for unexpected errors. Exception messages and stack traces can contain fragments of request bodies, so this is deliberate; revisit when Sentry scrubbing exists. The `ERROR ... Unhandled exception` line printed during `./mvnw verify` comes from the test-only `/test-only/boom` endpoint and is expected.
+- 24 Oct 2026: `ls` in Git Bash on Windows marks executable files with `*`; a `$(ls ...)` path then ends in `*`. Strip it with `SRC="${SRC%\*}"`. Also never type a placeholder path such as `/path/to/file` into a command.
+- 24 Oct 2026: `git add` warned `LF will be replaced by CRLF` for `mvnw.cmd`. Harmless on Windows. The shell script `mvnw` needs the executable bit in git (`git update-index --chmod=+x backend-java/mvnw`); CI also runs `chmod +x mvnw`.
