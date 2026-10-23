@@ -1,6 +1,6 @@
-# Render Blueprint for bevoya-api (ADR-0002: Singapore, next to nothing else yet).
-# No secrets belong in this file. Add secret variables with `sync: false`
-# and set their values in the Render dashboard.
+# Render Blueprint for bevoya-api (ADR-0002: Singapore).
+# No secrets belong in this file. Variables marked `sync: false` have their
+# values set in the Render dashboard (Environment tab).
 services:
   - type: web
     name: bevoya-api
@@ -11,3 +11,12 @@ services:
     dockerfilePath: ./backend-java/Dockerfile
     dockerContext: ./backend-java
     healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_POOL_MAX
+        value: "5"
