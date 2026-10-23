@@ -16,19 +16,11 @@ jobs:
         working-directory: backend-java
     steps:
       - uses: actions/checkout@v7
-      # Gate: skip until feature/java-skeleton adds pom.xml.
-      # Delete this step and every `if:` below once the project exists.
-      - id: scaffold
-        run: |
-          if [ -f pom.xml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "No pom.xml yet; skipping."; fi
-      - if: steps.scaffold.outputs.present == 'true'
-        uses: actions/setup-java@v6
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - if: steps.scaffold.outputs.present == 'true'
-        run: chmod +x mvnw
-      # Unit tests plus Testcontainers integration tests (Docker is preinstalled on ubuntu runners).
-      - if: steps.scaffold.outputs.present == 'true'
-        run: ./mvnw -B verify
+      - run: chmod +x mvnw
+      # Unit tests now; Testcontainers integration tests arrive with the database code.
+      - run: ./mvnw -B verify
