@@ -1,0 +1,13 @@
+# Render Blueprint for bevoya-api (ADR-0002: Singapore, next to nothing else yet).
+# No secrets belong in this file. Add secret variables with `sync: false`
+# and set their values in the Render dashboard.
+services:
+  - type: web
+    name: bevoya-api
+    runtime: docker
+    region: singapore
+    plan: free
+    autoDeploy: false
+    dockerfilePath: ./backend-java/Dockerfile
+    dockerContext: ./backend-java
+    healthCheckPath: /health
