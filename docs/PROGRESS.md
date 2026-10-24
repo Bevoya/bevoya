@@ -9,11 +9,11 @@ Update this file at the end of every work session: move items from "Next" to "Do
 |---|---|
 | Docs and ADRs | Written and committed |
 | Repo scaffold | Done (folders, README, .gitignore files, .gitattributes) |
-| CI | PR #4, #16, #18, #19, #20 and #21 merged into `develop`. PR #19 (`fix/ci-mobile-lint`) had five green checks; PR #18 (`feature/db-identity-goals`) and PR #21 (`feature/java-skeleton`) had all six (audit-ai, audit-mobile, ci-db, java, mobile, secrets) before merge. `ci-java` now really builds and tests the app (the gate is gone). **Not yet verified:** the `push` runs on `develop` after the #18, #19 and #21 merges |
+| CI | PR #4, #16, #18, #19, #20 and #21 merged into `develop`, plus the Render deploy PR and the database connection PR after them (their numbers were not recorded). PR #19 had five green checks; PR #18 and PR #21 had all six (audit-ai, audit-mobile, ci-db, java, mobile, secrets) before merge. `ci-java` really builds and tests the app (the gate is gone). **Not yet verified:** the `push` runs on `develop` after these merges |
 | Security incident | Closed for now. Token revoked, `.mcp.json` untracked, finding ignored by fingerprint. The revoked token is still in git history (see Notes) |
-| Database | Supabase dev project (Mumbai). V1, V2 and V3 applied through Flyway (`flyway info`: all Success; history table has 3 rows, all `success = true`). `public` has 4 tables (`consent_records`, `flyway_schema_history`, `goals`, `profiles`), all with RLS on. Zero table grants to `anon`, `authenticated`, `service_role`. `bevoya_app`: not superuser, no RLS bypass, can log in. `anon` has no execute privilege on `secure_table()`. **Still to check:** the Supabase Data API switch in the dashboard |
-| Java API | Skeleton merged (PR #21): Spring Boot 4.1.2, Java 21, Maven wrapper; `GET /health`, RFC 7807 problem responses with a request ID, request ID in log lines, generic 500 that leaks no exception text; 7 tests pass locally and in CI. No database, security, JPA or Flyway dependencies yet |
-| Deployment | `bevoya-api` created on Render from `render.yaml` (Docker, region `singapore`, free plan, `autoDeploy: false`), deployed from branch `chore/render-deploy`. `curl -i https://bevoya-api.onrender.com/health` returned `200`, body `{"status":"ok"}` and an `x-request-id` header. Dashboard region and plan were not shown in output. Free instances sleep after 15 minutes idle. **Not yet done:** merge the branch and switch the service to `develop` |
+| Database | Supabase dev project (Mumbai). V1, V2 and V3 applied through Flyway (`flyway info`: all Success); `public` has 4 tables (`consent_records`, `flyway_schema_history`, `goals`, `profiles`), all with RLS on; zero table grants to `anon`, `authenticated`, `service_role`; `anon` has no execute on `secure_table()`; Data API checked off (reported). `bevoya_app` is not superuser, has no RLS bypass and now has its own password (set as a SCRAM verifier, stored in the password manager and in Render). The DB admin password was rotated on 24 Oct (reported); the Render runtime never holds it |
+| Java API | Spring Boot 4.1.2, Java 21, Maven wrapper: `GET /health` (database-free), RFC 7807 problem responses with a request ID, request ID in log lines, generic 500 that leaks no exception text, JDBC with the PostgreSQL driver and a startup check that logs the connected role and query timings without failing the start. 9 tests pass locally and in CI (no database needed). On Render the app connected as `bevoya_app` through the session pooler: `Database reachable as bevoya_app (first query 9699 ms including connect, second query 102 ms)`. No JPA, security or Flyway in the app yet |
+| Deployment | `bevoya-api` on Render (Docker, region `singapore`, free plan, `autoDeploy: false`), service now deploying from `develop` (inferred: the running build contains code that exists only on `develop`). `curl -i https://bevoya-api.onrender.com/health` returned `200`, `{"status":"ok"}` and an `x-request-id` header. Database variables `DATABASE_URL`, `DB_USER`, `DB_PASSWORD`, `DB_POOL_MAX` are set in the dashboard. Dashboard region and plan were not shown in output. Free instances sleep after 15 minutes idle |
 | Python AI service | Not started (folders only) |
 | Mobile app | Route stubs, colour tokens, jest, lint and typecheck working under `npm ci` (17 tests pass). No screens yet |
 
@@ -63,22 +63,27 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 | 24 Oct 2026 | `feature/java-skeleton` recut from `develop` (the old pre-created branch had no unique commits and was deleted). Project generated from Spring Initializr (Boot 4.1.2, only the `web` dependency) and merged into `backend-java/` without touching `.gitignore` or the migrations. Added `HealthController`, `RequestIdFilter`, `ApiExceptionHandler`, `application.properties` (port from `PORT`, graceful shutdown, request ID in logs, no error text in responses) and `ApiBaselineTest` with a test-only failing endpoint. Local `./mvnw -B verify`: `Tests run: 7, Failures: 0, Errors: 0`, BUILD SUCCESS |
 | 24 Oct 2026 | PR #21 `feat(api): Spring Boot skeleton` merged after six green checks; `ci-java/java` ran the Maven build and tests in CI for the first time. `backend-java/mvnw` is stored with mode `100755` |
 | 24 Oct 2026 | `chore/render-deploy` recut from `develop` (the pre-created branch had no unique commits). Added `backend-java/Dockerfile` (Temurin 21, JRE-only run stage, non-root user, heap capped for small instances), `backend-java/.dockerignore` and `render.yaml`. Blueprint applied in Render; first build succeeded and `/health` returned 200 with `{"status":"ok"}` and an `x-request-id` header |
+| 24 Oct 2026 | Render service switched to `develop` and redeployed (reported); `/health` returned 200 afterwards |
+| 24 Oct 2026 | `feature/java-database` merged: `spring-boot-starter-jdbc`, PostgreSQL driver, datasource settings from `DATABASE_URL`, `DB_USER`, `DB_PASSWORD`, `DB_POOL_MAX`, `DatabaseStartupCheck` with 2 tests, test config under `src/test/resources/config/`, tidy `pom.xml`, env var names in `render.yaml`. Local `./mvnw -B verify`: 9 tests, 0 failures |
+| 24 Oct 2026 | `bevoya_app` given its own password with the one-off script `set-app-db-password.sh` (pre-hashed SCRAM-SHA-256, login test through the pooler passed). The script lives in Downloads and is not committed |
+| 24 Oct 2026 | First Render deploy with the database settings failed: the Supabase project (admin) password had been entered as `DB_PASSWORD` (`password authentication failed for user "bevoya_app"`). A further deploy hit the pooler's circuit breaker (`ECIRCUITBREAKER too many authentication failures`). After the correct `bevoya_app` credentials and a wait, the app connected (log line at 2026-10-23T21:44:33Z) |
+| 24 Oct 2026 | Supabase database (admin) password rotated (reported) |
 
 ## In progress
 
-- `chore/render-deploy` (commit `8cdeb45` pushed, plus this tracker update): deployed and verified on Render from this branch. Next: push the tracker commit, open one PR to `develop`, merge with `gh pr checks N && gh pr merge N --squash --delete-branch` only when every check is green. Then in the Render dashboard change the service's branch from `chore/render-deploy` to `develop`, run **Manual Deploy**, and check `/health` again, because `autoDeploy` is off and the branch is deleted on merge.
+- Update `FLYWAY_PASSWORD` in `backend-java/.env.local` (and the password manager) to the rotated admin password, then check it: load the file as in the Notes, run `flyway info`, then unset the variables. Until then Flyway and `set-app-db-password.sh` will fail to log in.
+- Re-measure the database connect time on Render: restart the service twice (not redeploy) and record the `Database reachable` line each time. The first sample, 9,699 ms for the first query, is close to the 10 s connect timeout and was taken right after a circuit-breaker lockout, so it is not yet a trustworthy number.
 - Clear the Flyway variables from the shell after use: `unset FLYWAY_PASSWORD FLYWAY_USER FLYWAY_URL FLYWAY_LOCATIONS`.
 - **Do not run `schema-check.sql` or `ci-bootstrap.sql` against Supabase.** Check 6 inserts into `auth.users`, and the bootstrap creates roles that already exist there. They belong only in CI's throwaway Postgres.
 
 ## Next (in order)
 
-1. Merge `chore/render-deploy` and switch the Render service to `develop` (see In progress)
-2. Add `ci-db` as a required check name in `GIT_WORKFLOW.md`, and fix `ai` to `audit-ai`
-3. Proposed split, `feature/java-database`: give `bevoya_app` its own password out of band, add the PostgreSQL and Flyway modules and JPA at the versions Spring Boot manages (not the rc used locally); connect through the session pooler; keep Flyway migrations off Render; set the database variables in Render with `sync: false`; add the Testcontainers empty-database migration test in CI
-4. `feature/java-auth`: JWKS validation (pin ES256), `CurrentUser`, `GET /me`, cross-user tests
-5. `feature/mobile-design-system`: `typography.ts`, `lightTheme` and `darkTheme`, `useTheme()`, Button, Card, TextField, EmptyState, ErrorState
-6. `feature/mobile-navigation`: sign-in screens, auth gate, goals list and create form
-7. `feature/ai-service-skeleton` (after M1)
+1. Fix the required-check names in `GIT_WORKFLOW.md` (`ci-db` added, `ai` becomes `audit-ai`) and record the Render and database variables in `ENVIRONMENT.md` (small docs PR)
+2. `feature/java-auth`: Supabase JWT validation by JWKS (pin ES256; issuer, audience and expiry checked), `CurrentUser`, `GET /me`, token security tests with a JWKS stub. Needs `SUPABASE_JWKS_URL`, `JWT_ISSUER`, `JWT_AUDIENCE` (no secrets). Check the project's real JWKS document before coding
+3. `feature/java-goals`: add JPA and, in test scope only, Testcontainers with Flyway (they run in CI; local Docker does not work, ADR-0006); goals endpoints owner-scoped through `CurrentUser`, cross-user tests that return `404`
+4. `feature/mobile-design-system`: `typography.ts`, `lightTheme` and `darkTheme`, `useTheme()`, Button, Card, TextField, EmptyState, ErrorState
+5. `feature/mobile-navigation`: sign-in screens, auth gate, goals list and create form
+6. `feature/ai-service-skeleton` (after M1)
 
 ## Small tasks to fit in
 
@@ -89,6 +94,7 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 - [ ] Review the npm `allowScripts` warning for `@parcel/watcher` and `unrs-resolver` (`npm install-scripts ls`)
 - [ ] ESLint 9.39.5 is reported deprecated by npm. Check Expo's supported ESLint version before upgrading
 - [ ] Confirm in the Render dashboard that `bevoya-api` shows region Singapore and plan Free (not visible in the `curl` output; the region cannot be changed after creation)
+- [ ] Decide whether `set-app-db-password.sh` should live in a private tools folder instead of Downloads (it must never be committed; it reads the admin settings from `backend-java/.env.local`)
 - [ ] Pin the base images in `backend-java/Dockerfile` (`eclipse-temurin:21-jdk` and `21-jre` are floating tags) and let Dependabot's Docker entry track them
 - [ ] Tidy `backend-java/pom.xml`: Initializr left empty `<licenses>`, `<developers>`, `<scm>` and `<url/>` elements and an empty `<description/>`
 - [ ] Comment `@dependabot rebase` on the open Dependabot PRs so they pick up the fixed workflows
@@ -107,7 +113,7 @@ Current milestone: **M1, the authenticated vertical slice.** Sign up, confirm em
 - [ ] Rename the Supabase project to `bevoya-dev` if it is not already, so dev and a later prod project cannot be confused
 - [ ] `ENVIRONMENT.md`: rename `EXPO_PUBLIC_SUPABASE_ANON_KEY` to `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Supabase's current name for the public key)
 - [ ] Check `backend-java/.gitignore` and `ai-python/.gitignore`: the `.env.*` rule also hides `.env.example`; add `!.env.example` so the example files can be committed
-- [ ] Give `bevoya_app` its own password out of band (never in a migration or repo file). The admin `postgres` password is for Flyway only and never goes on Render
+- [x] `bevoya_app` has its own password (set out of band 24 Oct). The admin `postgres` password is for Flyway only and never goes on Render
 - [ ] `ENVIRONMENT.md`: add `FLYWAY_LOCATIONS`, the session-pooler JDBC URL form and the rule that Flyway never runs on Render
 - [ ] Add the vector extension in its own migration when embeddings start (ADR-0004); V1 does not include it
 - [ ] The `ci-db` job uses a throwaway `postgres:postgres` connection URL. If `security / secrets` flags it, allow it narrowly (by fingerprint) with a comment saying it is a CI-only throwaway
@@ -157,3 +163,9 @@ Privacy settings, data export and account deletion, Sentry and PostHog with reda
 - 24 Oct 2026: `git add` warned `LF will be replaced by CRLF` for `mvnw.cmd`. Harmless on Windows. The shell script `mvnw` needs the executable bit in git (`git update-index --chmod=+x backend-java/mvnw`); CI also runs `chmod +x mvnw`.
 - 24 Oct 2026: Render build and first deploy worked on the first try with `dockerfilePath: ./backend-java/Dockerfile` and `dockerContext: ./backend-java` (repo-root paths, no `rootDir`). The service was created from the feature branch before merging so the Dockerfile was proven before it reached `develop`. Because the Blueprint has no `branch` field, the branch is whatever was chosen in the dashboard; it must be changed to `develop` after the merge deletes the feature branch.
 - 24 Oct 2026: The pre-created `chore/render-deploy` branch had the same commit hash as the other stale pre-created branches (`bfba0ee`) and no unique commits; it was deleted and recut, as the tracker rule says.
+- 24 Oct 2026: The Supabase project password is the password of the admin `postgres` role. `bevoya_app` is a separate role with its own password. Putting the admin password on Render is wrong (it broke the first deploy with `password authentication failed`) and `ENVIRONMENT.md` forbids it.
+- 24 Oct 2026: Through the Supabase session pooler the login name is `bevoya_app.<project-ref>`, but the application log shows the database role from `select current_user`, which is plain `bevoya_app`.
+- 24 Oct 2026: **Pooler circuit breaker.** After repeated failed logins Supavisor blocks the origin IP (here Render's outbound IP) for up to 2 minutes, and further bad attempts extend the block (`FATAL: (ECIRCUITBREAKER) too many authentication failures, new connections are temporarily blocked`). Fix the credentials first, wait about 3 minutes, then redeploy once. Do not redeploy repeatedly. Source: Supabase troubleshooting guide "Supavisor error: Circuit breaker open after password rotation". When rotating a database password, stop the services that use it first.
+- 24 Oct 2026: Rotating the admin password means updating `FLYWAY_PASSWORD` in `backend-java/.env.local` and the password manager. Flyway and `set-app-db-password.sh` read it from there.
+- 24 Oct 2026: `set-app-db-password.sh` sets a pre-hashed SCRAM-SHA-256 verifier so the plain password never appears in SQL text or a server log, and copies the new password to the Windows clipboard. Run it as `SHOW_PASSWORD=1 bash <path>` to print the password instead (then `clear && printf '\033[3J'` and close the window). Each run replaces the password.
+- 24 Oct 2026: First database timings from Render (Singapore) to Supabase (Mumbai): second query 102 ms, which is one round trip through the pooler. A request that makes three queries will therefore cost about 300 ms of database time; keep round trips per request low (ADR-0002). First-query time (9,699 ms) is unverified, see In progress.
