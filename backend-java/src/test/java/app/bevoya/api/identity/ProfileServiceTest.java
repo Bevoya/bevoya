@@ -3,17 +3,18 @@ package app.bevoya.api.identity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
+import app.bevoya.api.common.security.UnknownAccountException;
 
 /**
  * Needs Docker, so it is skipped on the dev laptop (ADR-0006) and runs in CI.
@@ -75,10 +76,10 @@ class ProfileServiceTest {
     assertEquals(1, profileCount(id));
   }
 
-  @Test
-  void aTokenForAnAccountThatNoLongerExistsIsRefusedByTheDatabase() {
+   @Test
+  void aTokenForAnAccountThatNoLongerExistsIsRefused() {
     UUID id = UUID.randomUUID(); // never inserted into auth.users
-    assertThrows(DataIntegrityViolationException.class, () -> service.ensureExists(id));
+    assertThrows(UnknownAccountException.class, () -> service.ensureExists(id));
     assertEquals(0, profileCount(id));
   }
 }
