@@ -3,6 +3,7 @@ package app.bevoya.api.common.security;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import app.bevoya.api.identity.ProfileService;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -26,10 +27,16 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -43,6 +50,18 @@ class AuthTokenTest {
 
   private static final ECKey KEY;
   private static final HttpServer JWKS;
+
+  /** Ids the stub ProfileService was asked to create. No database is involved in this test. */
+  private static final List<UUID> ENSURED = new CopyOnWriteArrayList<>();
+
+  @TestConfiguration
+  static class NoDatabaseProfiles {
+    @Bean
+    @Primary
+    ProfileService recordingProfileService() {
+      return id -> ENSURED.add(id);
+    }
+  }
 
   static {
     try {
@@ -111,6 +130,21 @@ class AuthTokenTest {
     HttpResponse<String> response = get("/me", signEs256(claims().build(), KEY));
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains(SUBJECT));
+  }
+
+  @Test
+  void meEnsuresTheProfileExistsForTheSubject() throws Exception {
+    ENSURED.clear();
+    assertEquals(200, get("/me", signEs256(claims().build(), KEY)).statusCode());
+    assertEquals(List.of(UUID.fromString(SUBJECT)), ENSURED);
+  }
+
+  @Test
+  void rejectedTokenNeverCreatesAProfile() throws Exception {
+    ENSURED.clear();
+    ECKey other = new ECKeyGenerator(Curve.P_256).keyID("test-key").generate();
+    assertRejected(signEs256(claims().build(), other));
+    assertTrue(ENSURED.isEmpty(), "no profile may be created for a request that failed authentication");
   }
 
   @Test
