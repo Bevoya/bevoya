@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import app.bevoya.api.common.security.PermitAllSecurityTestConfig;
+import org.springframework.context.annotation.Import;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -14,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(PermitAllSecurityTestConfig.class)
 class ApiBaselineTest {
 
     private static final String UUID_PATTERN =
@@ -65,13 +69,14 @@ class ApiBaselineTest {
     }
 
     @Test
-    void unknownPathReturnsProblemJson() throws Exception {
+    void unknownPathWithoutTokenIsUnauthorizedProblemJson() throws Exception {
+        // Unauthenticated callers cannot tell which routes exist: unknown paths answer 401, not 404.
         HttpResponse<String> response = send("GET", "/no-such-path", null);
 
-        assertEquals(404, response.statusCode());
+        assertEquals(401, response.statusCode());
         assertTrue(header(response, "Content-Type").startsWith("application/problem+json"),
                 header(response, "Content-Type"));
-        assertTrue(response.body().contains("\"status\":404"), response.body());
+        assertTrue(response.body().contains("\"status\":401"), response.body());
         assertTrue(response.body().contains("\"requestId\""), response.body());
     }
 
