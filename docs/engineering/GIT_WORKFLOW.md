@@ -60,10 +60,25 @@ v1.0.0  first public release
 
 ## 6. Branch protection
 
-Required checks on `main` and `develop`: `mobile`, `java`, `ai` and `secrets` (the job names in the workflows). No force-push, no deletion, delete head branches after merge.
+Required checks on `main` and `develop`: `audit-ai`, `audit-mobile`, `db`, `java`, `mobile` and `secrets` (the job names; GitHub shows them as `security/audit-ai`, `security/audit-mobile`, `ci-db/db`, `ci-java/java`, `ci-mobile/mobile` and `security/secrets`). No force-push, no deletion, delete head branches after merge.
 
 Protected branches and required status checks on a **private** repository need a paid GitHub plan. On a free plan, the checks still run and report, but nothing blocks a merge. Decide whether to upgrade or enforce by discipline.
 
 ## 7. First branches, in order
 
 `chore/ci-pipelines`, `feature/db-schema-migrations`, `feature/java-skeleton`, `feature/java-auth`, `feature/ai-service-skeleton`, `feature/mobile-design-system`, `feature/mobile-navigation`, then the feature branches listed in the blueprint, section 12.
+
+## 8. Local guards
+
+After cloning, run these once on every machine:
+
+```bash
+git config core.hooksPath .githooks
+git config pull.ff only
+```
+
+`core.hooksPath` is a local setting, so a fresh clone does not have it until you run the command.
+
+The hooks in `.githooks/` block pushes to `main` and `develop` (`pre-push`) and commits or merge commits made while `main` or `develop` is checked out (`pre-commit`, `pre-merge-commit`). Always work on a branch. `git commit --no-verify` skips the commit guards in a genuine emergency; the only way to change `main` or `develop` is a pull request.
+
+`pull.ff only` makes `git pull` refuse to create a merge commit instead of opening an editor.

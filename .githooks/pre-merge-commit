@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Blocks commits made while main or develop is checked out.
+# Work on a branch: git checkout -b type/short-description
+# Emergency bypass for a single commit: git commit --no-verify
+branch=$(git symbolic-ref --short -q HEAD || true)
+case "$branch" in
+  main|develop)
+    echo "Blocked: no commits on $branch. Create a branch first: git checkout -b feature/short-description" >&2
+    exit 1 ;;
+esac
+exit 0
