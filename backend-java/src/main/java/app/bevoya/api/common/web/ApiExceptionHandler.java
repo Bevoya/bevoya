@@ -1,5 +1,6 @@
 package app.bevoya.api.common.web;
 
+import app.bevoya.api.common.security.UnknownAccountException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -24,6 +25,28 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    // Built with createResponseEntity on purpose: handleExceptionInternal would add an
+    // "instance" with the request path, and then a missing goal and someone else's goal
+    // would produce different bodies.
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Object> handleNotFound(ResourceNotFoundException ex, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND, "We couldn't find that.");
+        problem.setTitle("Not found");
+        return createResponseEntity(problem, new HttpHeaders(), HttpStatus.NOT_FOUND, request);
+    }
+
+    @ExceptionHandler(UnknownAccountException.class)
+    public ResponseEntity<Object> handleUnknownAccount(UnknownAccountException ex, WebRequest request) {
+        log.warn("Valid token for an account that no longer exists");
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNAUTHORIZED, "Please sign in again.");
+        problem.setTitle("Unauthorized");
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+        return createResponseEntity(problem, headers, HttpStatus.UNAUTHORIZED, request);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleUnexpected(Exception ex, WebRequest request) {
