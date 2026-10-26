@@ -177,8 +177,13 @@ class GoalApiTest {
     return m.group(1);
   }
 
-  private static String withoutRequestId(String body) {
-    return body.replaceAll("\"requestId\":\"[^\"]*\",?", "");
+  /**
+   * Drops the two fields that legitimately differ per request: the request id, and the
+   * "instance" path that Spring MVC fills in with the URI the caller asked for. Each echoes only
+   * what the caller sent, so neither says whether the record exists.
+   */
+  private static String withoutPerRequestFields(String body) {
+    return body.replaceAll("\"(requestId|instance)\":\"[^\"]*\",?", "");
   }
 
   private static void assertProblem(HttpResponse<String> response, int status) {
@@ -235,7 +240,7 @@ class GoalApiTest {
       HttpResponse<String> absent = call(call[0], "/goals/" + missing, tokenFor(bob), call[1]);
       assertProblem(foreign, 404);
       assertProblem(absent, 404);
-      assertEquals(withoutRequestId(absent.body()), withoutRequestId(foreign.body()), call[0]);
+      assertEquals(withoutPerRequestFields(absent.body()), withoutPerRequestFields(foreign.body()), call[0]);
     }
 
     HttpResponse<String> still = call("GET", "/goals/" + goal, tokenFor(alice), null);
