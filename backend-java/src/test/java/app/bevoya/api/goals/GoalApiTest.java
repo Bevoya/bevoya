@@ -16,8 +16,15 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.flywaydb.core.Flyway;
@@ -143,6 +150,17 @@ class GoalApiTest {
     }
   }
 
+  private static long goalCount(UUID id) throws SQLException {
+    try (Connection c = admin();
+        var s = c.prepareStatement("select count(*) from public.goals where user_id = ?")) {
+      s.setObject(1, id);
+      try (ResultSet rs = s.executeQuery()) {
+        rs.next();
+        return rs.getLong(1);
+      }
+    }
+  }
+
   private HttpResponse<String> call(String method, String path, String token, String body) throws Exception {
     HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path));
     if (token != null) {
@@ -195,6 +213,16 @@ class GoalApiTest {
     HttpResponse<String> created = call("POST", "/goals", tokenFor(user), goalJson(title));
     assertEquals(201, created.statusCode(), created.body());
     return idOf(created);
+  }
+
+  private HttpResponse<String> createWithKey(UUID user, String key, String title) throws Exception {
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/goals"))
+        .header("Authorization", "Bearer " + tokenFor(user))
+        .header("Content-Type", "application/json")
+        .header("Idempotency-Key", key)
+        .POST(HttpRequest.BodyPublishers.ofString(goalJson(title)))
+        .build();
+    return client.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
   // ---- tests ----
@@ -371,5 +399,100 @@ class GoalApiTest {
     assertThrows(IllegalStateException.class, () -> probe.ensureThenFail(id));
     assertEquals(0, profileCount(id),
         "ensureExists (JDBC) must join the JPA transaction, or a failed goal insert leaves a profile behind");
+  }
+
+  @Test
+  void sameKeyTwiceCreatesOneGoalAndReturnsTheOriginal() throws Exception {
+    UUID alice = signedUpUser();
+    String key = UUID.randomUUID().toString();
+    HttpResponse<String> first = createWithKey(alice, key, "Original");
+    HttpResponse<String> retry = createWithKey(alice, key, "A different title");
+    assertEquals(201, first.statusCode(), first.body());
+    assertEquals(201, retry.statusCode(), retry.body());
+    assertEquals(idOf(first), idOf(retry));
+    assertEquals(first.body(), retry.body(), "a retry returns the original goal unchanged");
+    assertEquals(first.headers().firstValue("location"), retry.headers().firstValue("location"));
+    assertEquals(1, goalCount(alice));
+  }
+
+  @Test
+  void sameKeyFromTwoUsersStaysIndependent() throws Exception {
+    UUID alice = signedUpUser();
+    UUID bob = signedUpUser();
+    String key = UUID.randomUUID().toString();
+    UUID aliceGoal = idOf(createWithKey(alice, key, "Alice"));
+    UUID bobGoal = idOf(createWithKey(bob, key, "Bob"));
+    assertNotEquals(aliceGoal, bobGoal);
+    assertEquals(1, goalCount(alice));
+    assertEquals(1, goalCount(bob));
+    assertEquals(404, call("GET", "/goals/" + aliceGoal, tokenFor(bob), null).statusCode());
+  }
+
+  @Test
+  void withoutAKeyEveryPostCreatesANewGoal() throws Exception {
+    UUID alice = signedUpUser();
+    assertNotEquals(createGoal(alice, "Same"), createGoal(alice, "Same"));
+    assertEquals(2, goalCount(alice));
+  }
+
+  @Test
+  void malformedKeyIsRejectedAndCreatesNothing() throws Exception {
+    UUID alice = signedUpUser();
+    for (String key : List.of("short", "has spaces in the key", "x".repeat(101))) {
+      assertProblem(createWithKey(alice, key, "Nope"), 400);
+    }
+    assertEquals(0, goalCount(alice));
+  }
+
+  @Test
+  void rejectedRequestDoesNotUseUpTheKey() throws Exception {
+    UUID alice = signedUpUser();
+    String key = UUID.randomUUID().toString();
+    HttpRequest bad = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/goals"))
+        .header("Authorization", "Bearer " + tokenFor(alice))
+        .header("Content-Type", "application/json")
+        .header("Idempotency-Key", key)
+        .POST(HttpRequest.BodyPublishers.ofString("{\"title\":\"\"}"))
+        .build();
+    assertProblem(client.send(bad, HttpResponse.BodyHandlers.ofString()), 400);
+    assertEquals(201, createWithKey(alice, key, "Valid now").statusCode());
+    assertEquals(1, goalCount(alice));
+  }
+
+  @Test
+  void retryAfterTheGoalWasDeletedCreatesAFreshGoal() throws Exception {
+    UUID alice = signedUpUser();
+    String key = UUID.randomUUID().toString();
+    UUID first = idOf(createWithKey(alice, key, "Short lived"));
+    assertEquals(204, call("DELETE", "/goals/" + first, tokenFor(alice), null).statusCode());
+    HttpResponse<String> again = createWithKey(alice, key, "Short lived");
+    assertEquals(201, again.statusCode(), again.body());
+    assertNotEquals(first, idOf(again));
+    assertEquals(1, goalCount(alice));
+  }
+
+  @Test
+  void simultaneousRetriesCreateExactlyOneGoal() throws Exception {
+    UUID alice = signedUpUser();
+    // Profile must exist first, so the retries really race on the key and not on the profile row.
+    assertEquals(200, call("GET", "/me", tokenFor(alice), null).statusCode());
+    String key = UUID.randomUUID().toString();
+    ExecutorService pool = Executors.newFixedThreadPool(5);
+    try {
+      List<Future<HttpResponse<String>>> results = new ArrayList<>();
+      for (int i = 0; i < 5; i++) {
+        results.add(pool.submit(() -> createWithKey(alice, key, "Raced")));
+      }
+      Set<UUID> ids = new HashSet<>();
+      for (Future<HttpResponse<String>> result : results) {
+        HttpResponse<String> response = result.get(60, TimeUnit.SECONDS);
+        assertEquals(201, response.statusCode(), response.body());
+        ids.add(idOf(response));
+      }
+      assertEquals(1, ids.size(), "all retries must return the same goal");
+      assertEquals(1, goalCount(alice));
+    } finally {
+      pool.shutdownNow();
+    }
   }
 }

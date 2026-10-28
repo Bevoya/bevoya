@@ -1,5 +1,6 @@
 package app.bevoya.api.goals;
 
+import app.bevoya.api.common.idempotency.IdempotencyStore;
 import app.bevoya.api.common.security.CurrentUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -30,8 +32,11 @@ class GoalController {
   }
 
   @PostMapping
-  ResponseEntity<GoalResponse> create(CurrentUser user, @Valid @RequestBody CreateGoalRequest request) {
-    GoalResponse created = goals.create(user.authUserId(), request);
+  ResponseEntity<GoalResponse> create(CurrentUser user,
+      @RequestHeader(name = IdempotencyStore.HEADER, required = false)
+      @Pattern(regexp = IdempotencyStore.KEY_PATTERN) String idempotencyKey,
+      @Valid @RequestBody CreateGoalRequest request) {
+    GoalResponse created = goals.create(user.authUserId(), idempotencyKey, request);
     return ResponseEntity.created(URI.create("/goals/" + created.id())).body(created);
   }
 
