@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.bevoya.api.identity.ProfileService;
+import app.bevoya.api.profiles.ProfileDetailsService;
+import app.bevoya.api.profiles.ProfileResponse;
+import app.bevoya.api.profiles.UpdateProfileRequest;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -51,7 +54,7 @@ class AuthTokenTest {
   private static final ECKey KEY;
   private static final HttpServer JWKS;
 
-  /** Ids the stub ProfileService was asked to create. No database is involved in this test. */
+  /** Ids the stubs were asked to create or read. No database is involved in this test. */
   private static final List<UUID> ENSURED = new CopyOnWriteArrayList<>();
 
   @TestConfiguration
@@ -60,6 +63,29 @@ class AuthTokenTest {
     @Primary
     ProfileService recordingProfileService() {
       return id -> ENSURED.add(id);
+    }
+
+    /**
+     * GET /me reads the profile. The real service needs a database, so answer from memory.
+     * The real service ensures the profile exists before it reads, so the stub records that too.
+     * (ProfileApiTest proves the real behaviour against a real database in CI.)
+     */
+    @Bean
+    @Primary
+    ProfileDetailsService inMemoryProfileDetails() {
+      return new ProfileDetailsService() {
+        @Override
+        public ProfileResponse get(UUID userId) {
+          ENSURED.add(userId);
+          Instant now = Instant.now();
+          return new ProfileResponse(userId, null, "other", "UTC", null, now, now);
+        }
+
+        @Override
+        public ProfileResponse update(UUID userId, UpdateProfileRequest request) {
+          throw new UnsupportedOperationException("not used by the token tests");
+        }
+      };
     }
   }
 
