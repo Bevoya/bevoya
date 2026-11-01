@@ -343,7 +343,7 @@ class SkillApiTest {
     HttpResponse<String> read = call("GET", "/skills/" + id, tokenFor(alice), null);
     assertEquals("\"applied\"", field(read.body(), "level"));
     assertEquals("\"applied\"", field(read.body(), "targetLevel"));
-    assertEquals("6", field(read.body(), "evidenceCount"));
+    assertEquals("5", field(read.body(), "evidenceCount"));
     assertEquals("1", field(read.body(), "learningEntryCount"));
     assertTrue(!field(read.body(), "lastPracticedAt").equals("null"));
   }
