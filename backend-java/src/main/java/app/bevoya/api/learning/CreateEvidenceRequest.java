@@ -11,4 +11,5 @@ record CreateEvidenceRequest(
     @NotBlank @Size(max = 200) String title,
     @Size(max = 10000) String content,
     @Size(max = 2000) @Pattern(regexp = EvidenceVocabulary.HTTPS_PATTERN) String externalUrl,
-    UUID sessionId) {}
+    UUID sessionId,
+    UUID skillId) {}

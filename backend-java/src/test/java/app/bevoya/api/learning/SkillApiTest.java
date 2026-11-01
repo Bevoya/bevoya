@@ -406,4 +406,44 @@ class SkillApiTest {
     }
     assertEquals(1, skillCount(alice));
   }
+
+    @Test
+  void evidenceAndNotesLinkToYourOwnSkillsOnlyAndDeletingASkillUnlinksThem() throws Exception {
+    UUID alice = signedUpUser();
+    UUID bob = signedUpUser();
+    UUID mine = createOk(alice, skill("Linking"));
+    UUID bobs = createOk(bob, skill("Bob's skill"));
+
+    HttpResponse<String> evidence = call("POST", "/evidence", tokenFor(alice),
+        "{\"type\":\"note\",\"activityLevel\":\"built\",\"title\":\"Built it\",\"skillId\":\"" + mine + "\"}");
+    assertEquals(201, evidence.statusCode(), evidence.body());
+    assertEquals("\"" + mine + "\"", field(evidence.body(), "skillId"));
+    assertEquals("\"built\"", levelOf(alice, mine));
+
+    HttpResponse<String> entry = call("POST", "/learning-entries", tokenFor(alice),
+        "{\"title\":\"Note\",\"content\":\"Body\",\"skillId\":\"" + mine + "\"}");
+    assertEquals(201, entry.statusCode(), entry.body());
+    assertEquals("\"" + mine + "\"", field(entry.body(), "skillId"));
+    assertEquals("1", field(call("GET", "/skills/" + mine, tokenFor(alice), null).body(), "learningEntryCount"));
+
+    assertProblem(call("POST", "/evidence", tokenFor(alice),
+        "{\"type\":\"note\",\"activityLevel\":\"built\",\"title\":\"x\",\"skillId\":\"" + bobs + "\"}"), 404);
+    assertProblem(call("POST", "/learning-entries", tokenFor(alice),
+        "{\"title\":\"x\",\"content\":\"x\",\"skillId\":\"" + bobs + "\"}"), 404);
+    UUID entryId = idOf(entry);
+    assertProblem(call("PUT", "/learning-entries/" + entryId, tokenFor(alice),
+        "{\"title\":\"x\",\"content\":\"x\",\"skillId\":\"" + bobs + "\"}"), 404);
+    assertEquals("\"" + mine + "\"",
+        field(call("GET", "/learning-entries/" + entryId, tokenFor(alice), null).body(), "skillId"));
+
+    HttpResponse<String> cleared = call("PUT", "/learning-entries/" + entryId, tokenFor(alice),
+        "{\"title\":\"Note\",\"content\":\"Body\"}");
+    assertEquals(200, cleared.statusCode(), cleared.body());
+    assertEquals("null", field(cleared.body(), "skillId"), "PUT without a skill unlinks the note");
+    assertEquals("0", field(call("GET", "/skills/" + mine, tokenFor(alice), null).body(), "learningEntryCount"));
+
+    UUID evidenceId = idOf(evidence);
+    assertEquals(204, call("DELETE", "/skills/" + mine, tokenFor(alice), null).statusCode());
+    assertEquals("null", field(call("GET", "/evidence/" + evidenceId, tokenFor(alice), null).body(), "skillId"));
+  }
 }
