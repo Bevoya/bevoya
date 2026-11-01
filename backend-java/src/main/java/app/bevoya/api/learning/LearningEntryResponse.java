@@ -9,5 +9,6 @@ record LearningEntryResponse(
     String content,
     String sourceUrl,
     Integer confidence,
+    UUID skillId,
     Instant createdAt,
     Instant updatedAt) {}

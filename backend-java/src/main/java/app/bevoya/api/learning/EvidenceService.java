@@ -31,11 +31,12 @@ class EvidenceService {
   private static final int LIST_LIMIT = 100;
 
   private static final String COLUMNS =
-      "id, session_id, type, activity_level, title, content, external_url, created_at";
+      "id, session_id, skill_id, type, activity_level, title, content, external_url, created_at";
 
   private static final RowMapper<EvidenceResponse> MAPPER = (rs, n) -> new EvidenceResponse(
       rs.getObject("id", UUID.class),
       rs.getObject("session_id", UUID.class),
+      rs.getObject("skill_id", UUID.class),
       rs.getString("type"),
       rs.getString("activity_level"),
       rs.getString("title"),
@@ -96,17 +97,21 @@ class EvidenceService {
 
   private EvidenceResponse insert(UUID userId, CreateEvidenceRequest request) {
     profiles.ensureExists(userId);
-    return jdbc.sql("insert into public.evidence (id, user_id, session_id, type, activity_level, "
-            + "title, content, external_url) "
-            + "select cast(:id as uuid), p.id, cast(:session as uuid), cast(:type as text), "
-            + "cast(:level as text), cast(:title as text), cast(:content as text), "
-            + "cast(:url as text) "
+    return jdbc.sql("insert into public.evidence (id, user_id, session_id, skill_id, type, "
+            + "activity_level, title, content, external_url) "
+            + "select cast(:id as uuid), p.id, cast(:session as uuid), cast(:skill as uuid), "
+            + "cast(:type as text), cast(:level as text), cast(:title as text), "
+            + "cast(:content as text), cast(:url as text) "
             + "from public.profiles p where p.id = :user "
             + "and (cast(:session as uuid) is null or exists (select 1 from public.sessions s "
             + "where s.id = cast(:session as uuid) and s.user_id = :user)) "
+            + "and (cast(:skill as uuid) is null or exists (select 1 from public.skills k "
+            + "where k.id = cast(:skill as uuid) and k.user_id = :user)) "
             + "returning " + COLUMNS)
         .param("id", UUID.randomUUID())
         .param("session", request.sessionId() == null ? null : request.sessionId().toString(),
+            Types.VARCHAR)
+        .param("skill", request.skillId() == null ? null : request.skillId().toString(),
             Types.VARCHAR)
         .param("type", request.type(), Types.VARCHAR)
         .param("level", request.activityLevel(), Types.VARCHAR)

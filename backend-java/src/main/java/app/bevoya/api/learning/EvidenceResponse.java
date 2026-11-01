@@ -6,6 +6,7 @@ import java.util.UUID;
 record EvidenceResponse(
     UUID id,
     UUID sessionId,
+    UUID skillId,
     String type,
     String activityLevel,
     String title,

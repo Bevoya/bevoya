@@ -31,7 +31,7 @@ class LearningEntryService {
   private static final int LIST_LIMIT = 100;
 
   private static final String COLUMNS =
-      "id, title, content, source_url, confidence, created_at, updated_at";
+      "id, title, content, source_url, confidence, skill_id, created_at, updated_at";
 
   private static final RowMapper<LearningEntryResponse> MAPPER = (rs, n) -> new LearningEntryResponse(
       rs.getObject("id", UUID.class),
@@ -39,6 +39,7 @@ class LearningEntryService {
       rs.getString("content"),
       rs.getString("source_url"),
       rs.getObject("confidence", Integer.class),
+      rs.getObject("skill_id", UUID.class),
       instant(rs, "created_at"),
       instant(rs, "updated_at"));
 
@@ -96,22 +97,25 @@ class LearningEntryService {
   private LearningEntryResponse insert(UUID userId, LearningEntryRequest request) {
     profiles.ensureExists(userId);
     return jdbc.sql("insert into public.learning_entries (id, user_id, title, content, source_url, "
-            + "confidence) "
+            + "confidence, skill_id) "
             + "select cast(:id as uuid), p.id, cast(:title as text), cast(:content as text), "
-            + "cast(:url as text), cast(:confidence as smallint) "
+            + "cast(:url as text), cast(:confidence as smallint), cast(:skill as uuid) "
             + "from public.profiles p where p.id = :user "
+            + "and (cast(:skill as uuid) is null or exists (select 1 from public.skills k "
+            + "where k.id = cast(:skill as uuid) and k.user_id = :user)) "
             + "returning " + COLUMNS)
         .param("id", UUID.randomUUID())
         .param("title", request.title().strip(), Types.VARCHAR)
         .param("content", request.content(), Types.VARCHAR)
         .param("url", blankToNull(request.sourceUrl()), Types.VARCHAR)
         .param("confidence", request.confidence(), Types.INTEGER)
+        .param("skill", request.skillId() == null ? null : request.skillId().toString(),
+            Types.VARCHAR)
         .param("user", userId)
         .query(MAPPER)
         .optional()
         .orElseThrow(ResourceNotFoundException::new);
   }
-
   LearningEntryResponse get(UUID userId, UUID id) {
     return byId(userId, id).orElseThrow(ResourceNotFoundException::new);
   }
@@ -132,17 +136,22 @@ class LearningEntryService {
         .query(MAPPER)
         .list();
   }
-
+  
   LearningEntryResponse replace(UUID userId, UUID id, LearningEntryRequest request) {
     return jdbc.sql("update public.learning_entries set "
             + "title = cast(:title as text), content = cast(:content as text), "
             + "source_url = cast(:url as text), confidence = cast(:confidence as smallint), "
-            + "updated_at = now() "
-            + "where id = :id and user_id = :user returning " + COLUMNS)
+            + "skill_id = cast(:skill as uuid), updated_at = now() "
+            + "where id = :id and user_id = :user "
+            + "and (cast(:skill as uuid) is null or exists (select 1 from public.skills k "
+            + "where k.id = cast(:skill as uuid) and k.user_id = :user)) "
+            + "returning " + COLUMNS)
         .param("title", request.title().strip(), Types.VARCHAR)
         .param("content", request.content(), Types.VARCHAR)
         .param("url", blankToNull(request.sourceUrl()), Types.VARCHAR)
         .param("confidence", request.confidence(), Types.INTEGER)
+        .param("skill", request.skillId() == null ? null : request.skillId().toString(),
+            Types.VARCHAR)
         .param("id", id)
         .param("user", userId)
         .query(MAPPER)
