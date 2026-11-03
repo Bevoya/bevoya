@@ -8,6 +8,7 @@ export const fonts = {
 
 export const typography = {
   display: { fontFamily: fonts.bold, fontSize: 30, lineHeight: 38 },
+  wordmark: { fontFamily: fonts.bold, fontSize: 56, lineHeight: 64 },
   h1: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 32 },
   h2: { fontFamily: fonts.semibold, fontSize: 20, lineHeight: 28 },
   body: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 24 },
