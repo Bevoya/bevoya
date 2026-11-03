@@ -3,7 +3,7 @@ import { Mail } from 'lucide-react-native';
 import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthButton } from '../../components/ui/AuthButton';
-import { LandscapeBackground } from '../../components/ui/LandscapeBackground';
+import { LandscapeBackground } from '../../theme/LandscapeBackground';
 import en from '../../localization/en.json';
 import { colors } from '../../theme/colors';
 import { GoogleG } from '../../theme/googleG';
