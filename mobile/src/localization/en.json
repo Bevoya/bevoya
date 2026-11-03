@@ -3,5 +3,10 @@
     "greeting": "Good evening, {{name}}",
     "today": "Today",
     "start_session": "Start session"
+  },
+  "auth": {
+    "tagline": "Your life, moving forward.",
+    "continue_email": "Continue with email",
+    "continue_google": "Continue with Google"
   }
 }
