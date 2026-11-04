@@ -7,6 +7,30 @@
   "auth": {
     "tagline": "Your life, moving forward.",
     "continue_email": "Continue with email",
-    "continue_google": "Continue with Google"
+    "continue_google": "Continue with Google",
+    "back": "Back",
+    "email_label": "Email",
+    "password_label": "Password",
+    "show_password": "Show password",
+    "hide_password": "Hide password",
+    "sign_in_title": "Welcome back",
+    "sign_in_subtitle": "Sign in to pick up where you left off.",
+    "sign_in_action": "Sign in",
+    "sign_up_title": "Create your account",
+    "sign_up_subtitle": "Use your email. We will send you a link to confirm it.",
+    "sign_up_action": "Create account",
+    "age_confirm": "I am 18 or over",
+    "have_account": "I already have an account",
+    "need_account": "I need an account",
+    "sign_in_failed": "We could not sign you in. Check your email and password and try again.",
+    "email_not_confirmed": "Please confirm your email first. Check your inbox for our link.",
+    "offline": "We could not reach the server. Check your connection and try again.",
+    "sign_up_failed": "We could not create your account. Please try again.",
+    "weak_password": "That password is too easy to guess. Try a longer one.",
+    "rate_limited": "Too many attempts. Please try again in a few minutes.",
+    "check_email_title": "Check your email",
+    "check_email_body": "We sent a link to {{email}}. Open it to confirm your address, then come back and sign in.",
+    "go_to_sign_in": "Go to sign in",
+    "sign_out": "Sign out"
   }
 }
