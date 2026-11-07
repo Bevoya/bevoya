@@ -8,6 +8,8 @@ import { AuthButton } from '../../components/ui/AuthButton';
 import { FormScreen } from '../../components/ui/FormScreen';
 import { TextField } from '../../components/ui/TextField';
 import { signUpSchema, type SignUpValues } from '../../features/auth/schemas';
+import { authMessage, classifyAuthError, isExistingSignUp, type AuthProblem } from '../../features/auth/errors';
+import { legalCopy } from '../../features/legal/content';
 import en from '../../localization/en.json';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../theme/colors';
@@ -18,7 +20,10 @@ import { MAX_FONT_SCALE, typography } from '../../theme/typography';
 export default function SignUp() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  const [problem, setProblem] = useState<AuthProblem | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState(false);
   const {
     control,
     handleSubmit,
@@ -28,26 +33,34 @@ export default function SignUp() {
     defaultValues: { email: '', password: '', confirmAge: false },
   });
 
+  const fail = (next: AuthProblem) => {
+    setProblem(next);
+    setFormError(authMessage(next, 'sign_up'));
+  };
+
   const onSubmit = handleSubmit(async (values) => {
+    if (!termsAccepted) {
+      setTermsError(true);
+      return;
+    }
     setFormError(null);
-    const { error } = await supabase.auth.signUp({
+    setProblem(null);
+    const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
     });
 
-    if (!error) {
-      setSentTo(values.email);
+    if (error) {
+      fail(classifyAuthError(error));
       return;
     }
-    if (error.code === 'weak_password') {
-      setFormError(en.auth.weak_password);
-    } else if (error.code === 'over_email_send_rate_limit') {
-      setFormError(en.auth.rate_limited);
-    } else if (error.name === 'AuthRetryableFetchError') {
-      setFormError(en.auth.offline);
-    } else {
-      setFormError(en.auth.sign_up_failed);
+    if (isExistingSignUp(data)) {
+      fail('user_exists');
+      return;
     }
+    // With email confirmation off, Supabase returns a session and the app moves on by itself.
+    if (data.session) return;
+    setSentTo(values.email);
   });
 
   if (sentTo) {
@@ -143,6 +156,62 @@ export default function SignUp() {
             </View>
           )}
         />
+
+        <View style={styles.ageWrap}>
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: termsAccepted }}
+            accessibilityLabel={legalCopy.signUpAgree}
+            onPress={() => {
+              setTermsAccepted(!termsAccepted);
+              setTermsError(false);
+            }}
+            style={styles.ageRow}
+          >
+            <View style={[styles.box, termsAccepted && styles.boxChecked]}>
+              {termsAccepted ? <Check size={18} color={colors.white} /> : null}
+            </View>
+            <Text
+              style={[typography.body, { color: colors.charcoal, flexShrink: 1 }]}
+              maxFontSizeMultiplier={MAX_FONT_SCALE}
+            >
+              {legalCopy.signUpAgree}
+            </Text>
+          </Pressable>
+          <View style={styles.legalLinks}>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={legalCopy.termsLink}
+              onPress={() => router.push('/legal/terms')}
+              style={styles.legalLink}
+            >
+              <Text style={[typography.secondary, styles.linkText]} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+                {legalCopy.termsLink}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={legalCopy.privacyLink}
+              onPress={() => router.push('/legal/privacy')}
+              style={styles.legalLink}
+            >
+              <Text style={[typography.secondary, styles.linkText]} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+                {legalCopy.privacyLink}
+              </Text>
+            </Pressable>
+          </View>
+          {termsError ? (
+            <View style={styles.errorRow} accessibilityLiveRegion="polite">
+              <CircleAlert size={16} color={statusColors.error} />
+              <Text
+                style={[typography.secondary, { color: statusColors.error, flexShrink: 1 }]}
+                maxFontSizeMultiplier={MAX_FONT_SCALE}
+              >
+                {legalCopy.signUpError}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
 
       {formError ? (
@@ -158,13 +227,23 @@ export default function SignUp() {
       ) : null}
 
       <View style={styles.actions}>
-        <AuthButton
-          variant="primary"
-          label={isSubmitting ? '…' : en.auth.sign_up_action}
-          onPress={() => {
-            if (!isSubmitting) void onSubmit();
-          }}
-        />
+        {problem === 'user_exists' ? (
+          <AuthButton
+            variant="primary"
+            label="Sign in instead"
+            onPress={() => router.replace('/email-sign-in')}
+          />
+        ) : (
+          <AuthButton
+            variant="primary"
+            label={isSubmitting ? '…' : en.auth.sign_up_action}
+            onPress={() => {
+              if (isSubmitting) return;
+              if (!termsAccepted) setTermsError(true);
+              void onSubmit();
+            }}
+          />
+        )}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={en.auth.have_account}
@@ -196,6 +275,9 @@ const styles = StyleSheet.create({
   },
   boxChecked: { backgroundColor: colors.forest, borderColor: colors.forest },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  legalLinks: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.xl, paddingLeft: 28 + spacing.md },
+  legalLink: { minHeight: 48, justifyContent: 'center' },
+  linkText: { color: colors.forest, textDecorationLine: 'underline' },
   actions: { gap: spacing.md },
   link: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
 });

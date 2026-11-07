@@ -1,9 +1,21 @@
-import { Text, View } from 'react-native';
+import { copy, TOTAL_STEPS } from '../../features/onboarding/copy';
+import { timeOptions } from '../../features/onboarding/options';
+import { useOnboarding } from '../../features/onboarding/store';
+import { SingleChoiceStep } from '../../features/onboarding/ui';
 
-export default function Screen() {
+export default function TimeStep() {
+  const minutes = useOnboarding((s) => s.answers.minutes);
+  const setAnswer = useOnboarding((s) => s.setAnswer);
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Available time</Text>
-    </View>
+    <SingleChoiceStep
+      step={3}
+      total={TOTAL_STEPS}
+      title={copy.time.title}
+      subtitle={copy.time.subtitle}
+      options={timeOptions}
+      selected={minutes}
+      onSelect={(value) => setAnswer({ minutes: value })}
+      next="/best-time"
+    />
   );
 }

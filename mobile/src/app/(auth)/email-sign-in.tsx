@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AuthButton } from '../../components/ui/AuthButton';
 import { FormScreen } from '../../components/ui/FormScreen';
 import { TextField } from '../../components/ui/TextField';
+import { authMessage, classifyAuthError } from '../../features/auth/errors';
 import { signInSchema, type SignInValues } from '../../features/auth/schemas';
 import en from '../../localization/en.json';
 import { supabase } from '../../lib/supabase';
@@ -18,6 +19,7 @@ import { MAX_FONT_SCALE, typography } from '../../theme/typography';
 export default function EmailSignIn() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -29,19 +31,15 @@ export default function EmailSignIn() {
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
+
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
     });
-    if (!error) return; // the session change moves the app to the tabs
 
-    if (error.code === 'email_not_confirmed') {
-      setFormError(en.auth.email_not_confirmed);
-    } else if (error.name === 'AuthRetryableFetchError') {
-      setFormError(en.auth.offline);
-    } else {
-      setFormError(en.auth.sign_in_failed);
-    }
+    if (!error) return; // The session change moves the app to the tabs.
+
+    setFormError(authMessage(classifyAuthError(error), 'sign_in'));
   });
 
   return (
@@ -66,6 +64,7 @@ export default function EmailSignIn() {
             />
           )}
         />
+
         <Controller
           control={control}
           name="password"
@@ -91,6 +90,7 @@ export default function EmailSignIn() {
       {formError ? (
         <View style={styles.formError} accessibilityLiveRegion="polite">
           <CircleAlert size={18} color={statusColors.error} />
+
           <Text
             style={[typography.secondary, { color: statusColors.error, flexShrink: 1 }]}
             maxFontSizeMultiplier={MAX_FONT_SCALE}
@@ -108,13 +108,17 @@ export default function EmailSignIn() {
             if (!isSubmitting) void onSubmit();
           }}
         />
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={en.auth.need_account}
           onPress={() => router.replace('/sign-up')}
           style={styles.link}
         >
-          <Text style={[typography.body, { color: colors.forest }]} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+          <Text
+            style={[typography.body, { color: colors.forest }]}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+          >
             {en.auth.need_account}
           </Text>
         </Pressable>
@@ -124,8 +128,20 @@ export default function EmailSignIn() {
 }
 
 const styles = StyleSheet.create({
-  fields: { gap: spacing.xl },
-  formError: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  actions: { gap: spacing.md },
-  link: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  fields: {
+    gap: spacing.xl,
+  },
+  formError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  actions: {
+    gap: spacing.md,
+  },
+  link: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
