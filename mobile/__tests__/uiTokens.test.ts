@@ -1,5 +1,6 @@
 import { contrastRatio, withAlpha } from '../src/theme/color';
 import { clamp01, ringOffset } from '../src/components/ui/ringMath';
+import { colors } from '../src/theme/colors';
 import { darkTheme, lightTheme } from '../src/theme/themes';
 
 // Every card fill against the text colour Card uses on it.
@@ -20,7 +21,7 @@ describe.each([lightTheme, darkTheme])('card contrast, $name theme', (theme) => 
 
 describe('helpers', () => {
   it('builds a translucent colour', () => {
-    expect(withAlpha('#FFFFFF', 0.25)).toBe('rgba(255, 255, 255, 0.25)');
+    expect(withAlpha(colors.white, 0.25)).toBe('rgba(255, 255, 255, 0.25)');
   });
   it('clamps ring values', () => {
     expect(clamp01(2)).toBe(1);
