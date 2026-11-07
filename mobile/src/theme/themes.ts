@@ -16,6 +16,8 @@ export type ThemeColors = {
   accentMilestone: string;
   accentLearning: string;
   accentAction: string;
+  accentWarm: string;
+  accentOat: string;
   onAccent: string;
   inputBorder: string;
   cardBorder: string;
@@ -31,7 +33,8 @@ export type Theme = { name: 'light' | 'dark'; colors: ThemeColors };
 export const lightTheme: Theme = {
   name: 'light',
   colors: {
-    background: colors.ivory,
+    // The page is white so the cream cards stand out against it.
+    background: colors.white,
     surface: colors.white,
     surfaceElevated: colors.white,
     surfaceSelected: colors.sage,
@@ -44,9 +47,12 @@ export const lightTheme: Theme = {
     accentMilestone: colors.amber,
     accentLearning: colors.mist,
     accentAction: '#F79F4D',
+    // Cream: the same Warm Ivory as the sign-in and sign-up screens.
+    accentWarm: colors.ivory,
+    accentOat: colors.ivory,
     onAccent: colors.charcoal,
     inputBorder: colors.slate,
-    cardBorder: 'rgba(32, 41, 35, 0.08)',
+    cardBorder: 'rgba(32, 41, 35, 0.10)',
     error: '#B3261E',
     onError: colors.white,
     success: '#2E6B3F',
@@ -71,6 +77,8 @@ export const darkTheme: Theme = {
     accentMilestone: colors.amber,
     accentLearning: colors.mist,
     accentAction: '#F79F4D',
+    accentWarm: '#2B2A22',
+    accentOat: '#332F22',
     onAccent: colors.charcoal,
     inputBorder: '#6F8577',
     cardBorder: 'rgba(241, 243, 238, 0.12)',
