@@ -65,9 +65,10 @@ export default function SignIn() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ivory },
-  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
-  logo: { width: 112, height: 112, marginBottom: spacing.lg },
-  wordmark: { color: colors.forest, textAlign: 'center' },
-  tagline: { color: colors.forest, textAlign: 'center', marginTop: spacing.sm },
+  // Items stretch to the full width so the text is never measured to its exact width and clipped.
+  hero: { flex: 1, alignItems: 'stretch', justifyContent: 'center', paddingHorizontal: spacing.xl },
+  logo: { width: 112, height: 112, marginBottom: spacing.lg, alignSelf: 'center' },
+  wordmark: { color: colors.forest, textAlign: 'center', paddingHorizontal: 2 },
+  tagline: { color: colors.forest, textAlign: 'center', marginTop: spacing.sm, paddingHorizontal: 2 },
   actions: { paddingHorizontal: spacing.xxl, gap: spacing.md },
 });
