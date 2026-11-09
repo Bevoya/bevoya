@@ -5,6 +5,7 @@ export type AuthProblem =
   | 'email_not_confirmed'
   | 'user_exists'
   | 'weak_password'
+  | 'invalid_code'
   | 'rate_limited'
   | 'offline'
   | 'unknown';
@@ -18,6 +19,8 @@ export function classifyAuthError(error: ErrorLike): AuthProblem {
   if (code === 'email_not_confirmed') return 'email_not_confirmed';
   if (code === 'user_already_exists' || code === 'email_exists') return 'user_exists';
   if (code === 'weak_password') return 'weak_password';
+  // One code covers a wrong and an expired one-time code, so the two cannot be told apart.
+  if (code === 'otp_expired') return 'invalid_code';
   if (code === 'over_request_rate_limit' || code === 'over_email_send_rate_limit' || status === 429) {
     return 'rate_limited';
   }
@@ -31,25 +34,32 @@ export function isExistingSignUp(data: { user?: { identities?: unknown[] | null 
   return Array.isArray(identities) && identities.length === 0;
 }
 
-export type AuthContext = 'sign_in' | 'sign_up';
+export type AuthContext = 'sign_in' | 'sign_up' | 'verify' | 'resend';
+
+const fallbackMessage: Record<AuthContext, string> = {
+  sign_in: 'We couldn’t sign you in. Please try again.',
+  sign_up: 'We couldn’t create your account. Please try again.',
+  verify: 'We couldn’t check that code. Please try again.',
+  resend: 'We couldn’t send a new code. Please try again.',
+};
 
 export function authMessage(problem: AuthProblem, context: AuthContext): string {
   switch (problem) {
     case 'invalid_credentials':
       return 'That email and password don’t match. Check them and try again.';
     case 'email_not_confirmed':
-      return 'Confirm your email first. Check your inbox for the link.';
+      return 'Confirm your email first. Enter the code we sent you.';
     case 'user_exists':
       return 'An account with this email already exists. Sign in instead.';
     case 'weak_password':
       return 'That password is too weak. Try a longer one.';
+    case 'invalid_code':
+      return 'That code isn’t right, or it has expired. Check it or ask for a new one.';
     case 'rate_limited':
       return 'Too many attempts. Please try again in a few minutes.';
     case 'offline':
       return 'We couldn’t reach the server. Check your connection and try again.';
     default:
-      return context === 'sign_in'
-        ? 'We couldn’t sign you in. Please try again.'
-        : 'We couldn’t create your account. Please try again.';
+      return fallbackMessage[context];
   }
 }

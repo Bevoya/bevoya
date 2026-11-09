@@ -21,7 +21,6 @@ export default function SignUp() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   const [problem, setProblem] = useState<AuthProblem | null>(null);
-  const [sentTo, setSentTo] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const {
@@ -60,23 +59,9 @@ export default function SignUp() {
     }
     // With email confirmation off, Supabase returns a session and the app moves on by itself.
     if (data.session) return;
-    setSentTo(values.email);
+    // With confirmation on, a code has been emailed: ask for it.
+    router.replace({ pathname: '/verify-email', params: { email: values.email } });
   });
-
-  if (sentTo) {
-    return (
-      <FormScreen
-        title={en.auth.check_email_title}
-        subtitle={en.auth.check_email_body.replace('{{email}}', sentTo)}
-      >
-        <AuthButton
-          variant="primary"
-          label={en.auth.go_to_sign_in}
-          onPress={() => router.replace('/email-sign-in')}
-        />
-      </FormScreen>
-    );
-  }
 
   return (
     <FormScreen title={en.auth.sign_up_title} subtitle={en.auth.sign_up_subtitle}>
