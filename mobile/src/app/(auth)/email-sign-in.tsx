@@ -39,7 +39,16 @@ export default function EmailSignIn() {
 
     if (!error) return; // The session change moves the app to the tabs.
 
-    setFormError(authMessage(classifyAuthError(error), 'sign_in'));
+    const problem = classifyAuthError(error);
+    if (problem === 'email_not_confirmed') {
+      // The password was right but the address is not verified yet: send a fresh code and ask for it.
+      // A failure to send is not shown here; the code screen has its own resend button.
+      await supabase.auth.resend({ type: 'signup', email: values.email });
+      router.replace({ pathname: '/verify-email', params: { email: values.email } });
+      return;
+    }
+
+    setFormError(authMessage(problem, 'sign_in'));
   });
 
   return (
